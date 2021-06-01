@@ -28,8 +28,11 @@ type Counter_t struct {
 	Status000  int64
 }
 
-func (self *Counter_t) CounterAdd(a int64) int64 {
+func (self *Counter_t) CounterAdd(a int64) {
 	self.Count += a
+}
+
+func (self *Counter_t) CounterGet() int64 {
 	return self.Count
 }
 
