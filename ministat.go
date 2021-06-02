@@ -16,6 +16,8 @@ import (
 	"github.com/ondi/go-unique"
 )
 
+var NoOnline = NoOnline_t{}
+
 type Counter_t struct {
 	Count      int64
 	Online     int64
@@ -46,7 +48,10 @@ type Stat_t struct {
 	Routes []Route_t
 }
 
-type Online_t func(string, int64, time.Duration)
+type Online interface {
+	MinistatOnline(string, int64)
+	MinistatDuration(string, time.Duration)
+}
 
 type Ministat_t struct {
 	mx            sync.Mutex
@@ -54,11 +59,14 @@ type Ministat_t struct {
 	limit_backlog int
 	limit_items   int
 	truncate      time.Duration
-	online        Online_t
+	online        Online
 	next          http.Handler
 }
 
-func NoOnline(string, int64, time.Duration) {}
+type NoOnline_t struct{}
+
+func (NoOnline_t) MinistatOnline(string, int64)           {}
+func (NoOnline_t) MinistatDuration(string, time.Duration) {}
 
 type StatusResponseWriter struct {
 	http.ResponseWriter
@@ -77,7 +85,7 @@ func (self *StatusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 	return nil, nil, errors.New("not a http.Hijacker")
 }
 
-func New(limit_backlog int, limit_items int, truncate time.Duration, next http.Handler, online Online_t) (self *Ministat_t) {
+func New(limit_backlog int, limit_items int, truncate time.Duration, next http.Handler, online Online) (self *Ministat_t) {
 	self = &Ministat_t{
 		cc:            cache.New(),
 		limit_backlog: limit_backlog,
@@ -110,9 +118,10 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	self.mx.Unlock()
 
+	self.online.MinistatOnline(r.URL.Path, counter.Online)
 	self.next.ServeHTTP(writer, r)
 	diff := time.Since(start)
-	self.online(r.URL.Path, counter.Online, diff)
+	self.online.MinistatDuration(r.URL.Path, diff)
 
 	self.mx.Lock()
 	if diff > counter.RequestMax {
