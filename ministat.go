@@ -49,8 +49,8 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(string, int64)
-	MinistatDuration(string, time.Duration)
+	MinistatOnline(route string, count int64)
+	MinistatDuration(route string, status int, diff time.Duration)
 }
 
 type Ministat_t struct {
@@ -65,8 +65,8 @@ type Ministat_t struct {
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatOnline(string, int64)           {}
-func (NoOnline_t) MinistatDuration(string, time.Duration) {}
+func (NoOnline_t) MinistatOnline(string, int64)                {}
+func (NoOnline_t) MinistatDuration(string, int, time.Duration) {}
 
 type StatusResponseWriter struct {
 	http.ResponseWriter
@@ -121,7 +121,7 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.online.MinistatOnline(r.URL.Path, counter.Online)
 	self.next.ServeHTTP(writer, r)
 	diff := time.Since(start)
-	self.online.MinistatDuration(r.URL.Path, diff)
+	self.online.MinistatDuration(r.URL.Path, writer.status_code, diff)
 
 	self.mx.Lock()
 	if diff > counter.RequestMax {
