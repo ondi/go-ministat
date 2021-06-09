@@ -16,8 +16,6 @@ import (
 	"github.com/ondi/go-unique"
 )
 
-var NoOnline = NoOnline_t{}
-
 type Counter_t struct {
 	Count      int64
 	Online     int64
@@ -53,6 +51,11 @@ type Online interface {
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
 }
 
+type NoOnline_t struct{}
+
+func (NoOnline_t) MinistatOnline(*http.Request, int64)                {}
+func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration) {}
+
 type Ministat_t struct {
 	mx            sync.Mutex
 	cc            *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
@@ -62,11 +65,6 @@ type Ministat_t struct {
 	online        Online
 	next          http.Handler
 }
-
-type NoOnline_t struct{}
-
-func (NoOnline_t) MinistatOnline(string, int64)                {}
-func (NoOnline_t) MinistatDuration(string, int, time.Duration) {}
 
 type StatusResponseWriter struct {
 	http.ResponseWriter
