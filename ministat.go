@@ -17,13 +17,13 @@ import (
 )
 
 type Counter_t struct {
-	Count       int64
+	count       int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
-	DurationMax time.Duration
-	DurationSum time.Duration
 	StartSum    time.Duration
-	StartNum    time.Duration
+	DurationSum time.Duration
+	DurationNum time.Duration
+	DurationMax time.Duration
 	Status200   int64
 	Status400   int64
 	Status500   int64
@@ -31,11 +31,11 @@ type Counter_t struct {
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
-	self.Count += a
+	self.count += a
 }
 
 func (self *Counter_t) CounterGet() int64 {
-	return self.Count
+	return self.count
 }
 
 type Route_t struct {
@@ -116,11 +116,11 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	counter, _ := it.Value.(*unique.Often_t).Add(r.URL.Path, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
 	counter.StartSum += start.Sub(self.begin)
-	counter.StartNum++
+	counter.DurationNum++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	start_avg := self.begin.Add(counter.StartSum / counter.StartNum)
+	start_avg := self.begin.Add(counter.StartSum / time.Duration(counter.Online))
 	self.mx.Unlock()
 
 	self.online.MinistatOnline(r, start_avg, counter.Online)
@@ -130,9 +130,8 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	self.mx.Lock()
 	counter.Online--
-	counter.DurationSum += diff
 	counter.StartSum -= start.Sub(self.begin)
-	counter.StartNum--
+	counter.DurationSum += diff
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
