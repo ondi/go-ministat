@@ -22,8 +22,8 @@ type Counter_t struct {
 	OnlineMax   int64
 	DurationMax time.Duration
 	DurationSum time.Duration
-	StartTsSum  int64
-	StartTsNum  int64
+	StartSum    time.Duration
+	StartNum    time.Duration
 	Status200   int64
 	Status400   int64
 	Status500   int64
@@ -64,6 +64,7 @@ type Ministat_t struct {
 	limit_backlog int
 	limit_items   int
 	truncate      time.Duration
+	begin         time.Time
 	online        Online
 	next          http.Handler
 }
@@ -91,6 +92,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
 		truncate:      truncate,
+		begin:         time.Now(),
 		online:        online,
 		next:          next,
 	}
@@ -113,12 +115,12 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	counter, _ := it.Value.(*unique.Often_t).Add(r.URL.Path, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
-	counter.StartTsSum += start.Unix()
-	counter.StartTsNum++
+	counter.StartSum += start.Sub(self.begin)
+	counter.StartNum++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	start_avg := time.Unix(counter.StartTsSum/counter.StartTsNum, 0)
+	start_avg := self.begin.Add(counter.StartSum / counter.StartNum)
 	self.mx.Unlock()
 
 	self.online.MinistatOnline(r, start_avg, counter.Online)
@@ -129,8 +131,8 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
-	counter.StartTsSum -= start.Unix()
-	counter.StartTsNum--
+	counter.StartSum -= start.Sub(self.begin)
+	counter.StartNum--
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
