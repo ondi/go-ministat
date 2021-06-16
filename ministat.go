@@ -17,15 +17,17 @@ import (
 )
 
 type Counter_t struct {
-	Count      int64
-	Online     int64
-	OnlineMax  int64
-	RequestMax time.Duration
-	RequestSum time.Duration
-	Status200  int64
-	Status400  int64
-	Status500  int64
-	Status000  int64
+	Count       int64
+	Online      int64
+	OnlineMax   int64
+	DurationMax time.Duration
+	DurationSum time.Duration
+	StartTsSum  int64
+	StartTsNum  int64
+	Status200   int64
+	Status400   int64
+	Status500   int64
+	Status000   int64
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -47,7 +49,7 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(r *http.Request, count int64)
+	MinistatOnline(r *http.Request, start_avg time.Time, count int64)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
 }
 
@@ -111,22 +113,27 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	counter, _ := it.Value.(*unique.Often_t).Add(r.URL.Path, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
+	counter.StartTsSum += start.Unix()
+	counter.StartTsNum++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
+	start_avg := time.Unix(counter.StartTsSum/counter.StartTsNum, 0)
 	self.mx.Unlock()
 
-	self.online.MinistatOnline(r, counter.Online)
+	self.online.MinistatOnline(r, start_avg, counter.Online)
 	self.next.ServeHTTP(writer, r)
 	diff := time.Since(start)
 	self.online.MinistatDuration(r, writer.status_code, diff)
 
 	self.mx.Lock()
-	if diff > counter.RequestMax {
-		counter.RequestMax = diff
-	}
 	counter.Online--
-	counter.RequestSum += diff
+	counter.DurationSum += diff
+	counter.StartTsSum -= start.Unix()
+	counter.StartTsNum--
+	if diff > counter.DurationMax {
+		counter.DurationMax = diff
+	}
 	switch {
 	case writer.status_code >= 200 && writer.status_code < 300:
 		counter.Status200++
@@ -179,5 +186,5 @@ func (self *Ministat_t) List(order int64) (res []Stat_t) {
 type LessRequest_t struct{}
 
 func (LessRequest_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
-	return a.Value.(*Counter_t).RequestMax < b.Value.(*Counter_t).RequestMax
+	return a.Value.(*Counter_t).DurationMax < b.Value.(*Counter_t).DurationMax
 }
