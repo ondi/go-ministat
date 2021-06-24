@@ -55,7 +55,7 @@ type Online interface {
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatOnline(*http.Request, int64)                {}
+func (NoOnline_t) MinistatOnline(*http.Request, time.Time, int64)     {}
 func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration) {}
 
 type Ministat_t struct {
