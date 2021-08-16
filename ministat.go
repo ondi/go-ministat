@@ -101,7 +101,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 
 func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	writer := &StatusResponseWriter{w, http.StatusOK}
+	writer := StatusResponseWriter{w, http.StatusOK}
 
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
@@ -124,7 +124,7 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.mx.Unlock()
 
 	self.online.MinistatOnline(r, start_avg, counter.Online)
-	self.next.ServeHTTP(writer, r)
+	self.next.ServeHTTP(&writer, r)
 	diff := time.Since(start)
 	self.online.MinistatDuration(r, writer.status_code, diff)
 
