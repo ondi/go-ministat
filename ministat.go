@@ -16,6 +16,8 @@ import (
 	"github.com/ondi/go-unique"
 )
 
+var GETURL = GetUrl
+
 type Counter_t struct {
 	count       int64 // reservoir sampling
 	Online      int64
@@ -99,6 +101,10 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
+func GetUrl(r *http.Request) string {
+	return r.URL.Path
+}
+
 func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
@@ -113,7 +119,7 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if self.cc.Size() > self.limit_backlog {
 		self.cc.Remove(self.cc.Front().Key)
 	}
-	counter, _ := it.Value.(*unique.Often_t).Add(r.URL.Path, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
+	counter, _ := it.Value.(*unique.Often_t).Add(GETURL(r), func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
 	counter.StartSum += start.Sub(self.begin)
 	counter.DurationNum++
