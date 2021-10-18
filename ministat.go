@@ -16,7 +16,9 @@ import (
 	"github.com/ondi/go-unique"
 )
 
-var GETURL = GetUrl
+var GETURL = func(r *http.Request) string {
+	return r.URL.Path
+}
 
 type Counter_t struct {
 	count       int64 // reservoir sampling
@@ -53,12 +55,14 @@ type Stat_t struct {
 type Online interface {
 	MinistatOnline(r *http.Request, start_avg time.Time, count int64) (err error)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
+	MinistatEvict(key interface{})
 }
 
 type NoOnline_t struct{}
 
 func (NoOnline_t) MinistatOnline(*http.Request, time.Time, int64) (err error) { return }
 func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration)         {}
+func (NoOnline_t) MinistatEvict(key interface{})                              {}
 
 type Ministat_t struct {
 	mx            sync.Mutex
@@ -101,10 +105,6 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
-func GetUrl(r *http.Request) string {
-	return r.URL.Path
-}
-
 func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
@@ -117,7 +117,9 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 	if self.cc.Size() > self.limit_backlog {
-		self.cc.Remove(self.cc.Front().Key)
+		key := self.cc.Front().Key
+		self.cc.Remove(key)
+		self.online.MinistatEvict(key)
 	}
 	counter, _ := it.Value.(*unique.Often_t).Add(GETURL(r), func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
