@@ -51,14 +51,14 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(r *http.Request, start_avg time.Time, count int64)
+	MinistatOnline(r *http.Request, start_avg time.Time, count int64) (err error)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
 }
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatOnline(*http.Request, time.Time, int64)     {}
-func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration) {}
+func (NoOnline_t) MinistatOnline(*http.Request, time.Time, int64) (err error) { return }
+func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration)         {}
 
 type Ministat_t struct {
 	mx            sync.Mutex
@@ -127,14 +127,17 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		counter.OnlineMax = counter.Online
 	}
 	start_avg := self.begin.Add(counter.StartSum / time.Duration(counter.Online))
-	self.mx.Unlock()
 
-	self.online.MinistatOnline(r, start_avg, counter.Online)
-	self.next.ServeHTTP(&writer, r)
+	self.mx.Unlock()
+	if err := self.online.MinistatOnline(r, start_avg, counter.Online); err != nil {
+		http.Error(&writer, err.Error(), http.StatusTooManyRequests)
+	} else {
+		self.next.ServeHTTP(&writer, r)
+	}
 	diff := time.Since(start)
 	self.online.MinistatDuration(r, writer.status_code, diff)
-
 	self.mx.Lock()
+
 	counter.Online--
 	counter.StartSum -= start.Sub(self.begin)
 	counter.DurationSum += diff
