@@ -154,44 +154,36 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.mx.Unlock()
 }
 
-func (self *Ministat_t) List(order int64) (res []Stat_t) {
+func (self *Ministat_t) List(order cache.IsLess) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.cc.Back(); it != self.cc.End(); it = it.Prev() {
 		temp := Stat_t{
 			Ts: it.Key.(time.Time),
 		}
-		switch order {
-		case 1:
-			it.Value.(*unique.Often_t).Range(
-				LessRequest_t{},
-				func(key interface{}, value unique.Counter) bool {
-					temp.Routes = append(temp.Routes, Route_t{
-						Name:    key.(string),
-						Counter: *value.(*Counter_t),
-					})
-					return true
-				},
-			)
-		default:
-			it.Value.(*unique.Often_t).Range(
-				unique.Less_t{},
-				func(key interface{}, value unique.Counter) bool {
-					temp.Routes = append(temp.Routes, Route_t{
-						Name:    key.(string),
-						Counter: *value.(*Counter_t),
-					})
-					return true
-				},
-			)
-		}
+		it.Value.(*unique.Often_t).Range(
+			order,
+			func(key interface{}, value unique.Counter) bool {
+				temp.Routes = append(temp.Routes, Route_t{
+					Name:    key.(string),
+					Counter: *value.(*Counter_t),
+				})
+				return true
+			},
+		)
 		res = append(res, temp)
 	}
 	return
 }
 
-type LessRequest_t struct{}
+type LessHits_t struct{}
 
-func (LessRequest_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+func (LessHits_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+	return a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationNum
+}
+
+type LessDuration_t struct{}
+
+func (LessDuration_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
 	return a.Value.(*Counter_t).DurationMax < b.Value.(*Counter_t).DurationMax
 }
