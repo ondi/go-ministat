@@ -139,13 +139,14 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start_avg := self.begin.Add(counter.StartSum / time.Duration(counter.Online))
 
 	self.mx.Unlock()
-	if req, err := self.online.MinistatOnline(r, start_avg, counter.Online); err != nil {
+	req, err := self.online.MinistatOnline(r, start_avg, counter.Online)
+	if err != nil {
 		http.Error(&writer, err.Error(), http.StatusTooManyRequests)
 	} else {
 		self.next.ServeHTTP(&writer, req)
 	}
 	diff := time.Since(start)
-	self.online.MinistatDuration(r, writer.status_code, diff)
+	self.online.MinistatDuration(req, writer.status_code, diff)
 	self.mx.Lock()
 
 	counter.Online--
