@@ -108,7 +108,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
-func (self *Ministat_t) MetricBegin(name string, start time.Time, num int64) (counter *Counter_t) {
+func (self *Ministat_t) MetricBegin(name string, start time.Time, num int) (counter *Counter_t) {
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
 		start.Truncate(self.truncate),
@@ -152,7 +152,7 @@ func (self *Ministat_t) MetricEnd(counter *Counter_t, diff time.Duration, status
 	self.mx.Unlock()
 }
 
-func (self *Ministat_t) AddDuration(name string, num int64, start time.Time, diff time.Duration, status_code int) {
+func (self *Ministat_t) AddDuration(name string, num int, start time.Time, diff time.Duration, status_code int) {
 	counter := self.MetricBegin(name, start, num)
 	self.MetricEnd(counter, diff, status_code)
 }
