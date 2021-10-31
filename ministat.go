@@ -24,7 +24,7 @@ type Counter_t struct {
 	count       int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
-	Hits        int64
+	Processed   int
 	DurationNum time.Duration
 	DurationSum time.Duration
 	DurationMax time.Duration
@@ -108,7 +108,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
-func (self *Ministat_t) MetricBegin(name string, start time.Time, num int) (counter *Counter_t) {
+func (self *Ministat_t) MetricBegin(name string, start time.Time, processed int) (counter *Counter_t) {
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
 		start.Truncate(self.truncate),
@@ -123,11 +123,11 @@ func (self *Ministat_t) MetricBegin(name string, start time.Time, num int) (coun
 	}
 	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
-	counter.Hits++
-	counter.DurationNum += time.Duration(num)
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
+	counter.Processed += processed
+	counter.DurationNum++
 	self.mx.Unlock()
 	return
 }
@@ -152,8 +152,8 @@ func (self *Ministat_t) MetricEnd(counter *Counter_t, diff time.Duration, status
 	self.mx.Unlock()
 }
 
-func (self *Ministat_t) AddDuration(name string, num int, start time.Time, diff time.Duration, status_code int) {
-	counter := self.MetricBegin(name, start, num)
+func (self *Ministat_t) AddDuration(name string, processed int, start time.Time, diff time.Duration, status_code int) {
+	counter := self.MetricBegin(name, start, processed)
 	self.MetricEnd(counter, diff, status_code)
 }
 
