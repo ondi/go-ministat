@@ -24,6 +24,7 @@ type Counter_t struct {
 	count       int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
+	Hits        int64
 	DurationNum time.Duration
 	DurationSum time.Duration
 	DurationMax time.Duration
@@ -122,6 +123,7 @@ func (self *Ministat_t) MetricBegin(name string, start time.Time, num int64) (co
 	}
 	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
+	counter.Hits++
 	counter.DurationNum += time.Duration(num)
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
