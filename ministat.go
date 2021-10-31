@@ -169,7 +169,7 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.mx.Unlock()
 }
 
-func (self *Ministat_t) List(order cache.IsLess) (res []Stat_t) {
+func (self *Ministat_t) List(order cache.MyLess) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.cc.Back(); it != self.cc.End(); it = it.Prev() {
