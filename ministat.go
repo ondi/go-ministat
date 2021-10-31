@@ -24,9 +24,8 @@ type Counter_t struct {
 	count       int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
-	StartSum    time.Duration
-	DurationSum time.Duration
 	DurationNum time.Duration
+	DurationSum time.Duration
 	DurationMax time.Duration
 	Status200   int64
 	Status400   int64
@@ -53,24 +52,19 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(r *http.Request, start_avg time.Time, count int64) (*http.Request, error)
+	MinistatOnline(r *http.Request, count int64) (*http.Request, error)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
 	MinistatEvict(key interface{})
 }
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatOnline(r *http.Request, ts time.Time, count int64) (*http.Request, error) {
+func (NoOnline_t) MinistatOnline(r *http.Request, count int64) (*http.Request, error) {
 	return r, nil
 }
 
-func (NoOnline_t) MinistatDuration(*http.Request, int, time.Duration) {
-
-}
-
-func (NoOnline_t) MinistatEvict(key interface{}) {
-
-}
+func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {}
+func (NoOnline_t) MinistatEvict(key interface{})                                    {}
 
 type Ministat_t struct {
 	mx            sync.Mutex
@@ -113,10 +107,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
-func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	writer := StatusResponseWriter{w, http.StatusOK}
-
+func (self *Ministat_t) MetricBegin(name string, start time.Time) (counter *Counter_t) {
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
 		start.Truncate(self.truncate),
@@ -129,44 +120,53 @@ func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		self.cc.Remove(key)
 		self.online.MinistatEvict(key)
 	}
-	counter, _ := it.Value.(*unique.Often_t).Add(GETURL(r), func() unique.Counter { return &Counter_t{} }).(*Counter_t)
+	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
-	counter.StartSum += start.Sub(self.begin)
 	counter.DurationNum++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	start_avg := self.begin.Add(counter.StartSum / time.Duration(counter.Online))
-
 	self.mx.Unlock()
-	var diff time.Duration
-	req, err := self.online.MinistatOnline(r, start_avg, counter.Online)
-	if err != nil {
-		http.Error(&writer, err.Error(), http.StatusTooManyRequests)
-	} else {
-		self.next.ServeHTTP(&writer, req)
-		diff = time.Since(start)
-		self.online.MinistatDuration(req, writer.status_code, diff)
-	}
-	self.mx.Lock()
+	return
+}
 
+func (self *Ministat_t) MetricEnd(counter *Counter_t, diff time.Duration, status_code int) {
+	self.mx.Lock()
 	counter.Online--
-	counter.StartSum -= start.Sub(self.begin)
 	counter.DurationSum += diff
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
 	switch {
-	case writer.status_code >= 200 && writer.status_code < 300:
+	case status_code >= 200 && status_code < 300:
 		counter.Status200++
-	case writer.status_code >= 400 && writer.status_code < 500:
+	case status_code >= 400 && status_code < 500:
 		counter.Status400++
-	case writer.status_code >= 500:
+	case status_code >= 500:
 		counter.Status500++
 	default:
 		counter.Status000++
 	}
 	self.mx.Unlock()
+}
+
+func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	writer := StatusResponseWriter{w, http.StatusOK}
+
+	counter := self.MetricBegin(GETURL(r), start)
+
+	var diff time.Duration
+	req, err := self.online.MinistatOnline(r, counter.Online)
+	if err != nil {
+		http.Error(&writer, err.Error(), http.StatusTooManyRequests)
+	} else {
+		self.next.ServeHTTP(&writer, req)
+	}
+	diff = time.Since(start)
+	self.online.MinistatDuration(req, writer.status_code, diff)
+
+	self.MetricEnd(counter, diff, writer.status_code)
 }
 
 func (self *Ministat_t) List(order cache.MyLess) (res []Stat_t) {
