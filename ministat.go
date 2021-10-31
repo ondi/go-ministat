@@ -107,7 +107,7 @@ func New(limit_backlog int, limit_items int, truncate time.Duration, next http.H
 	return
 }
 
-func (self *Ministat_t) MetricBegin(name string, start time.Time) (counter *Counter_t) {
+func (self *Ministat_t) MetricBegin(name string, start time.Time, num int64) (counter *Counter_t) {
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
 		start.Truncate(self.truncate),
@@ -122,7 +122,7 @@ func (self *Ministat_t) MetricBegin(name string, start time.Time) (counter *Coun
 	}
 	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
-	counter.DurationNum++
+	counter.DurationNum += time.Duration(num)
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
@@ -150,11 +150,16 @@ func (self *Ministat_t) MetricEnd(counter *Counter_t, diff time.Duration, status
 	self.mx.Unlock()
 }
 
+func (self *Ministat_t) AddDuration(name string, num int64, start time.Time, diff time.Duration, status_code int) {
+	counter := self.MetricBegin(name, start, num)
+	self.MetricEnd(counter, diff, status_code)
+}
+
 func (self *Ministat_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
 
-	counter := self.MetricBegin(GETURL(r), start)
+	counter := self.MetricBegin(GETURL(r), start, 1)
 
 	var diff time.Duration
 	req, err := self.online.MinistatOnline(r, counter.Online)
