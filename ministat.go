@@ -106,7 +106,7 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration) (sel
 	return
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time, processed int) (counter *Counter_t) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t) {
 	self.mx.Lock()
 	it, _ := self.cc.CreateBack(
 		start.Truncate(self.truncate),
@@ -123,15 +123,15 @@ func (self *Storage_t) MetricBegin(name string, start time.Time, processed int) 
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	counter.Processed += processed
 	counter.DurationNum++
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, status_code int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, processed int, diff time.Duration, status_code int) {
 	self.mx.Lock()
 	counter.Online--
+	counter.Processed += processed
 	counter.DurationSum += diff
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
@@ -150,7 +150,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, status_
 }
 
 func (self *Storage_t) AddDuration(name string, processed int, start time.Time, diff time.Duration, status_code int) {
-	self.MetricEnd(self.MetricBegin(name, start, processed), diff, status_code)
+	self.MetricEnd(self.MetricBegin(name, start), processed, diff, status_code)
 }
 
 func (self *Storage_t) List(order cache.MyLess) (res []Stat_t) {
@@ -196,7 +196,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
 
-	counter := self.storage.MetricBegin(GETURL(r), start, 1)
+	counter := self.storage.MetricBegin(GETURL(r), start)
 
 	var diff time.Duration
 	req, err := self.online.MinistatOnline(r, counter.Online)
@@ -208,7 +208,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	diff = time.Since(start)
 	self.online.MinistatDuration(req, writer.status_code, diff)
 
-	self.storage.MetricEnd(counter, diff, writer.status_code)
+	self.storage.MetricEnd(counter, 1, diff, writer.status_code)
 }
 
 func (self *Middleware_t) List(order cache.MyLess) (res []Stat_t) {
