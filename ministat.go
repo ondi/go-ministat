@@ -182,9 +182,9 @@ type Middleware_t struct {
 	err     http.Handler
 }
 
-func NewMiddleware(limit_backlog int, limit_items int, truncate time.Duration, ok http.Handler, err http.Handler, online Online) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, ok http.Handler, err http.Handler, online Online) (self *Middleware_t) {
 	self = &Middleware_t{
-		storage: NewStorage(limit_backlog, limit_items, truncate),
+		storage: storage,
 		online:  online,
 		ok:      ok,
 		err:     err,
