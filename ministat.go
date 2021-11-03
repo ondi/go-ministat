@@ -53,9 +53,8 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(r *http.Request, count int64) (*http.Request, error)
+	MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) error
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 type NoOnline_t struct{}
@@ -65,11 +64,7 @@ func (NoOnline_t) MinistatOnline(r *http.Request, count int64) (*http.Request, e
 }
 
 func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {
-
-}
-
-func (NoOnline_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+	return
 }
 
 type StatusResponseWriter struct {
@@ -197,16 +192,12 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	counter := self.storage.MetricBegin(GETURL(r), start)
 
-	var diff time.Duration
-	req, err := self.online.MinistatOnline(r, counter.Online)
-	if err != nil {
-		self.online.ServeHTTP(&writer, req)
-	} else {
-		self.next.ServeHTTP(&writer, req)
+	if self.online.MinistatOnline(&writer, r, counter.Online) == nil {
+		self.next.ServeHTTP(&writer, r)
 	}
-	diff = time.Since(start)
-	self.online.MinistatDuration(req, writer.status_code, diff)
 
+	diff := time.Since(start)
+	self.online.MinistatDuration(r, writer.status_code, diff)
 	self.storage.MetricEnd(counter, 1, diff, writer.status_code)
 }
 
