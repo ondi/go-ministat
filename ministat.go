@@ -55,6 +55,7 @@ type Stat_t struct {
 type Online interface {
 	MinistatOnline(r *http.Request, count int64) (*http.Request, error)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 type NoOnline_t struct{}
@@ -63,11 +64,11 @@ func (NoOnline_t) MinistatOnline(r *http.Request, count int64) (*http.Request, e
 	return r, nil
 }
 
-func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {}
+func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {
 
-type TooManyRequests struct{}
+}
 
-func (TooManyRequests) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (NoOnline_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
@@ -177,17 +178,15 @@ func (self *Storage_t) List(order cache.MyLess) (res []Stat_t) {
 
 type Middleware_t struct {
 	storage *Storage_t
+	next    http.Handler
 	online  Online
-	ok      http.Handler
-	err     http.Handler
 }
 
-func NewMiddleware(storage *Storage_t, ok http.Handler, err http.Handler, online Online) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, next http.Handler, online Online) (self *Middleware_t) {
 	self = &Middleware_t{
 		storage: storage,
+		next:    next,
 		online:  online,
-		ok:      ok,
-		err:     err,
 	}
 	return
 }
@@ -201,9 +200,9 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var diff time.Duration
 	req, err := self.online.MinistatOnline(r, counter.Online)
 	if err != nil {
-		self.err.ServeHTTP(&writer, req)
+		self.online.ServeHTTP(&writer, req)
 	} else {
-		self.ok.ServeHTTP(&writer, req)
+		self.next.ServeHTTP(&writer, req)
 	}
 	diff = time.Since(start)
 	self.online.MinistatDuration(req, writer.status_code, diff)
