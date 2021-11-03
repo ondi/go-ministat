@@ -53,14 +53,15 @@ type Stat_t struct {
 }
 
 type Online interface {
-	MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) error
+	// *http.Request should always be returned
+	MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) (*http.Request, bool)
 	MinistatDuration(r *http.Request, status int, diff time.Duration)
 }
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatOnline(r *http.Request, count int64) (*http.Request, error) {
-	return r, nil
+func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) (*http.Request, bool) {
+	return r, true
 }
 
 func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {
@@ -192,12 +193,14 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	counter := self.storage.MetricBegin(GETURL(r), start)
 
-	if self.online.MinistatOnline(&writer, r, counter.Online) == nil {
-		self.next.ServeHTTP(&writer, r)
+	req, ok := self.online.MinistatOnline(&writer, r, counter.Online)
+	if ok {
+		self.next.ServeHTTP(&writer, req)
 	}
 
 	diff := time.Since(start)
-	self.online.MinistatDuration(r, writer.status_code, diff)
+	self.online.MinistatDuration(req, writer.status_code, diff)
+
 	self.storage.MetricEnd(counter, 1, diff, writer.status_code)
 }
 
