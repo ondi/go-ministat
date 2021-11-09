@@ -92,17 +92,17 @@ func (self *StatusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 type Storage_t struct {
 	mx            sync.Mutex
 	cc            *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
+	truncate      time.Duration
 	limit_backlog int
 	limit_items   int
-	truncate      time.Duration
 }
 
 func NewStorage(limit_backlog int, limit_items int, truncate time.Duration) (self *Storage_t) {
 	self = &Storage_t{
 		cc:            cache.New(),
+		truncate:      truncate,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
-		truncate:      truncate,
 	}
 	return
 }
@@ -222,5 +222,5 @@ func (LessHits_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
 type LessDuration_t struct{}
 
 func (LessDuration_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
-	return a.Value.(*Counter_t).DurationMax < b.Value.(*Counter_t).DurationMax
+	return a.Value.(*Counter_t).DurationSum/a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationSum/b.Value.(*Counter_t).DurationNum
 }
