@@ -224,3 +224,9 @@ type LessDuration_t struct{}
 func (LessDuration_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
 	return a.Value.(*Counter_t).DurationSum/a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationSum/b.Value.(*Counter_t).DurationNum
 }
+
+type LessName_t struct{}
+
+func (LessName_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+	return a.Key.(string) < b.Key.(string)
+}
