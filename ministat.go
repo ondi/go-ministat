@@ -223,6 +223,12 @@ func (LessHits_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
 	return a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationNum
 }
 
+type LessProcessed_t struct{}
+
+func (LessProcessed_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+	return a.Value.(*Counter_t).Processed < b.Value.(*Counter_t).Processed
+}
+
 type LessDuration_t struct{}
 
 func (LessDuration_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
