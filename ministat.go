@@ -154,10 +154,14 @@ func (self *Storage_t) AddDuration(name string, processed int, start time.Time, 
 	self.MetricEnd(self.MetricBegin(name, start), processed, diff, status_code)
 }
 
-func (self *Storage_t) List(order cache.MyLess) (res []Stat_t) {
+func (self *Storage_t) List(order cache.MyLess, limit int) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.cc.Back(); it != self.cc.End(); it = it.Prev() {
+		if limit == 0 {
+			return
+		}
+		limit--
 		temp := Stat_t{
 			Ts: it.Key.(time.Time),
 		}
@@ -209,8 +213,8 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.storage.MetricEnd(counter, 1, diff, writer.status_code)
 }
 
-func (self *Middleware_t) List(order cache.MyLess) (res []Stat_t) {
-	return self.storage.List(order)
+func (self *Middleware_t) List(order cache.MyLess, limit int) (res []Stat_t) {
+	return self.storage.List(order, limit)
 }
 
 type LessHits_t struct{}
