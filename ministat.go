@@ -129,11 +129,11 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, processed int, diff time.Duration, status_code int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) {
 	self.mx.Lock()
 	counter.Online--
-	counter.Processed += processed
 	counter.DurationSum += diff
+	counter.Processed += processed
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
@@ -150,8 +150,8 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, processed int, diff time.Du
 	self.mx.Unlock()
 }
 
-func (self *Storage_t) AddDuration(name string, processed int, start time.Time, diff time.Duration, status_code int) {
-	self.MetricEnd(self.MetricBegin(name, start), processed, diff, status_code)
+func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Duration, processed int, status_code int) {
+	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
 }
 
 func (self *Storage_t) List(order cache.MyLess, limit int) (res []Stat_t) {
@@ -210,7 +210,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	diff := time.Since(start)
 	self.online.MinistatDuration(r, writer.status_code, diff)
 
-	self.storage.MetricEnd(counter, 1, diff, writer.status_code)
+	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
 
 func (self *Middleware_t) List(order cache.MyLess, limit int) (res []Stat_t) {
