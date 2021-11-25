@@ -16,9 +16,6 @@ import (
 	"github.com/ondi/go-unique"
 )
 
-var NOONLINE = NoOnline_t{}
-var PAGENAME = PageName_t{}
-
 type PageName interface {
 	GetPageName(r *http.Request) (res string)
 }
