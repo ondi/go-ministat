@@ -64,7 +64,7 @@ type Stat_t struct {
 type Online interface {
 	MinistatContext(r *http.Request) *http.Request
 	MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) bool
-	MinistatDuration(r *http.Request, status int, diff time.Duration)
+	MinistatDuration(r *http.Request, name string, status int, diff time.Duration)
 }
 
 type NoOnline_t struct{}
@@ -77,7 +77,7 @@ func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, count i
 	return true
 }
 
-func (NoOnline_t) MinistatDuration(r *http.Request, status int, diff time.Duration) {
+func (NoOnline_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
 	return
 }
 
@@ -210,7 +210,8 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
 
-	counter := self.storage.MetricBegin(self.page_name.GetPageName(r), start)
+	name := self.page_name.GetPageName(r)
+	counter := self.storage.MetricBegin(name, start)
 
 	r = self.online.MinistatContext(r)
 
@@ -219,7 +220,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
-	self.online.MinistatDuration(r, writer.status_code, diff)
+	self.online.MinistatDuration(r, name, writer.status_code, diff)
 
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
