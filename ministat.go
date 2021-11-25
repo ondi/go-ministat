@@ -192,16 +192,16 @@ func (self *Storage_t) List(order cache.MyLess, limit int) (res []Stat_t) {
 type Middleware_t struct {
 	storage   *Storage_t
 	next      http.Handler
-	online    Online
 	page_name PageName
+	online    Online
 }
 
-func NewMiddleware(storage *Storage_t, next http.Handler, online Online, page_name PageName) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, next http.Handler, page_name PageName, online Online) (self *Middleware_t) {
 	self = &Middleware_t{
 		storage:   storage,
 		next:      next,
-		online:    online,
 		page_name: page_name,
+		online:    online,
 	}
 	return
 }
