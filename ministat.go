@@ -63,7 +63,7 @@ type Stat_t struct {
 
 type Online interface {
 	MinistatContext(r *http.Request) *http.Request
-	MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) bool
+	MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool
 	MinistatDuration(r *http.Request, name string, status int, diff time.Duration)
 }
 
@@ -73,7 +73,7 @@ func (NoOnline_t) MinistatContext(r *http.Request) *http.Request {
 	return r
 }
 
-func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, count int64) bool {
+func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool {
 	return true
 }
 
@@ -215,7 +215,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	r = self.online.MinistatContext(r)
 
-	if self.online.MinistatOnline(&writer, r, counter.Online) {
+	if self.online.MinistatOnline(&writer, r, name, counter.Online) {
 		self.next.ServeHTTP(&writer, r)
 	}
 
