@@ -16,7 +16,16 @@ import (
 	"github.com/ondi/go-unique"
 )
 
-var GETURL = func(r *http.Request) string {
+var NOONLINE = NoOnline_t{}
+var PAGENAME = PageName_t{}
+
+type PageName interface {
+	GetPageName(r *http.Request) (res string)
+}
+
+type PageName_t struct{}
+
+func (PageName_t) GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
 
@@ -181,16 +190,18 @@ func (self *Storage_t) List(order cache.MyLess, limit int) (res []Stat_t) {
 }
 
 type Middleware_t struct {
-	storage *Storage_t
-	next    http.Handler
-	online  Online
+	storage   *Storage_t
+	next      http.Handler
+	online    Online
+	page_name PageName
 }
 
-func NewMiddleware(storage *Storage_t, next http.Handler, online Online) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, next http.Handler, online Online, page_name PageName) (self *Middleware_t) {
 	self = &Middleware_t{
-		storage: storage,
-		next:    next,
-		online:  online,
+		storage:   storage,
+		next:      next,
+		online:    online,
+		page_name: page_name,
 	}
 	return
 }
@@ -199,7 +210,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	writer := StatusResponseWriter{w, http.StatusOK}
 
-	counter := self.storage.MetricBegin(GETURL(r), start)
+	counter := self.storage.MetricBegin(self.page_name.GetPageName(r), start)
 
 	r = self.online.MinistatContext(r)
 
