@@ -97,16 +97,18 @@ func (self *StatusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 
 type Storage_t struct {
 	mx            sync.Mutex
-	cc            *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
+	timeline      *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
 	truncate      time.Duration
+	evict         unique.Evicter
 	limit_backlog int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration) (self *Storage_t) {
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evicter) (self *Storage_t) {
 	self = &Storage_t{
-		cc:            cache.New(),
+		timeline:      cache.New(),
 		truncate:      truncate,
+		evict:         evict,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
 	}
@@ -115,22 +117,28 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration) (sel
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t) {
 	self.mx.Lock()
-	it, _ := self.cc.CreateBack(
+	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
 		func() interface{} {
-			return unique.NewOften(self.limit_items)
+			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	if self.cc.Size() > self.limit_backlog {
-		key := self.cc.Front().Key
-		self.cc.Remove(key)
-	}
 	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
 	counter.DurationNum++
+	if self.timeline.Size() > self.limit_backlog {
+		self.timeline.Front().Value.(*unique.Often_t).Range(
+			LessHits_t{},
+			func(key interface{}, counter unique.Counter) bool {
+				self.evict.Evict(key)
+				return true
+			},
+		)
+		self.timeline.Remove(self.timeline.Front().Key)
+	}
 	self.mx.Unlock()
 	return
 }
@@ -163,7 +171,7 @@ func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Durat
 func (self *Storage_t) List(order cache.MyLess, limit int) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
-	for it := self.cc.Back(); it != self.cc.End(); it = it.Prev() {
+	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
 		if limit == 0 {
 			return
 		}

@@ -4,5 +4,11 @@ go 1.17
 
 require (
 	github.com/ondi/go-cache v0.0.0-20211111075227-baee44a21c32
-	github.com/ondi/go-unique v0.0.0-20211111081349-43c28a1b671f
+	github.com/ondi/go-unique v0.0.0-20211203095226-612e671914ac
+	gotest.tools v2.2.0+incompatible
+)
+
+require (
+	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 )
