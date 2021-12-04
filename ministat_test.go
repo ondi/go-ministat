@@ -31,7 +31,7 @@ func (self *Evict_t) Evict(fn func(less cache.MyLess, f func(key interface{}, va
 }
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 10, time.Second, &Evict_t{t: t, str: "test1"})
+	s := NewStorage(0, 10, time.Second, (&Evict_t{t: t, str: "test1"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -40,7 +40,7 @@ func Test_Evict01(t *testing.T) {
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 10, time.Second, &Evict_t{t: t, str: "test2"})
+	s := NewStorage(1, 10, time.Second, (&Evict_t{t: t, str: "test2"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {

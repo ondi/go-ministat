@@ -99,12 +99,12 @@ type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
 	truncate      time.Duration
-	evict         unique.Evicter
+	evict         unique.Evict
 	limit_backlog int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evicter) (self *Storage_t) {
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evict) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New(),
 		truncate:      truncate,
@@ -130,7 +130,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	}
 	counter.DurationNum++
 	if self.timeline.Size() > self.limit_backlog {
-		self.evict.Evict(self.timeline.Front().Value.(*unique.Often_t).Range)
+		self.evict(self.timeline.Front().Value.(*unique.Often_t).Range)
 		self.timeline.Remove(self.timeline.Front().Key)
 	}
 	self.mx.Unlock()
