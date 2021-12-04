@@ -130,7 +130,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	}
 	counter.DurationNum++
 	if self.timeline.Size() > self.limit_backlog {
-		self.evict(self.timeline.Front().Value.(*unique.Often_t).Range)
+		self.evict(self.timeline.Front().Value.(*unique.Often_t).RangeRaw)
 		self.timeline.Remove(self.timeline.Front().Key)
 	}
 	self.mx.Unlock()
