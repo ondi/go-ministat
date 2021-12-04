@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ondi/go-cache"
+	"github.com/ondi/go-unique"
 	"gotest.tools/assert"
 )
 
@@ -18,9 +20,14 @@ type Evict_t struct {
 	str string
 }
 
-func (self *Evict_t) Evict(key interface{}) {
+func (self *Evict_t) Value(key interface{}, value unique.Counter) bool {
 	self.t.Logf("EVICT: %v", key)
 	assert.Assert(self.t, strings.Contains(key.(string), self.str), key)
+	return true
+}
+
+func (self *Evict_t) Evict(fn func(less cache.MyLess, f func(key interface{}, value unique.Counter) bool)) {
+	fn(LessHits_t{}, self.Value)
 }
 
 func Test_Evict01(t *testing.T) {

@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/ondi/go-cache v0.0.0-20211111075227-baee44a21c32
-	github.com/ondi/go-unique v0.0.0-20211203153342-d2e29a1323d5
+	github.com/ondi/go-unique v0.0.0-20211204112023-4faa3c9544da
 	gotest.tools v2.2.0+incompatible
 )
 
