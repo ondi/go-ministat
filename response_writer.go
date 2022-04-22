@@ -84,6 +84,6 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		if v := log.ContextGet(r.Context()); v != nil {
 			errors = v.Values()
 		}
-		log.TraceCtx(r.Context(), "%s:%d RESPONSE: req='%s', resp='%s', errors=%s", r.URL.String(), writer.status_code, reader.Data(), writer.Data(), errors)
+		log.TraceCtx(r.Context(), "%v RESPONSE: %d req='%s', resp='%s', errors=%s", r.URL.String(), writer.status_code, reader.Data(), writer.Data(), errors)
 	}
 }
