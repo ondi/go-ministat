@@ -5,7 +5,10 @@
 package ministat
 
 import (
+	"bufio"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/ondi/go-log"
@@ -20,6 +23,13 @@ type ResponseWriter_t struct {
 func (self *ResponseWriter_t) WriteHeader(status_code int) {
 	self.ResponseWriter.WriteHeader(status_code)
 	self.status_code = status_code
+}
+
+func (self *ResponseWriter_t) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := self.ResponseWriter.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, errors.New("not a http.Hijacker")
 }
 
 type Writer_t struct {

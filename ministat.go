@@ -5,9 +5,6 @@
 package ministat
 
 import (
-	"bufio"
-	"errors"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -76,23 +73,6 @@ func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name st
 
 func (NoOnline_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
 	return
-}
-
-type StatusResponseWriter struct {
-	http.ResponseWriter
-	status_code int
-}
-
-func (self *StatusResponseWriter) WriteHeader(code int) {
-	self.status_code = code
-	self.ResponseWriter.WriteHeader(code)
-}
-
-func (self *StatusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if h, ok := self.ResponseWriter.(http.Hijacker); ok {
-		return h.Hijack()
-	}
-	return nil, nil, errors.New("not a http.Hijacker")
 }
 
 type Storage_t struct {
@@ -207,7 +187,7 @@ func NewMiddleware(storage *Storage_t, next http.Handler, page_name PageName, on
 
 func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	writer := StatusResponseWriter{w, http.StatusOK}
+	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
 	name := self.page_name.GetPageName(r)
 	counter := self.storage.MetricBegin(name, start)
