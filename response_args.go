@@ -58,3 +58,7 @@ func (self *CopyWriter_t) Args(args ...interface{}) {
 		}
 	}
 }
+
+func (self *CopyWriter_t) Reset() {
+	self.written = 0
+}
