@@ -17,13 +17,13 @@ import (
 )
 
 var ServerRequestCount = stats.Int64(
-	"opencensus.io/http/server/page",
+	"http/server/page",
 	"Number of HTTP requests per page",
 	stats.UnitDimensionless,
 )
 
 var ServerLatency = stats.Float64(
-	"opencensus.io/http/latency/page",
+	"http/latency/page",
 	"End-to-end latency",
 	stats.UnitMilliseconds,
 )
@@ -58,7 +58,7 @@ func (self *Online_t) MinistatContext(r *http.Request) *http.Request {
 }
 
 func (self *Online_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool {
-	if count > self.Count {
+	if count >= self.Count {
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return false
 	}
