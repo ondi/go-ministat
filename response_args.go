@@ -13,6 +13,13 @@ type WithValue interface {
 	Value() (driver.Value, error)
 }
 
+var TRIM = map[byte]bool{
+	'\r': true,
+	'\n': true,
+	'\t': true,
+	'\v': true,
+}
+
 type CopyWriter_t struct {
 	buf     [1024]byte
 	written int
@@ -29,10 +36,18 @@ func (self *CopyWriter_t) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (self *CopyWriter_t) Data() []byte {
-	if self.written > 0 && self.buf[self.written-1] == '\n' {
-		return self.buf[:self.written-1]
+func (self *CopyWriter_t) TrimRight() []byte {
+	for self.written > 0 {
+		if TRIM[self.buf[self.written-1]] {
+			self.written--
+		} else {
+			break
+		}
 	}
+	return self.buf[:self.written]
+}
+
+func (self *CopyWriter_t) Bytes() []byte {
 	return self.buf[:self.written]
 }
 
