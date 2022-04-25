@@ -10,7 +10,7 @@ type Cors_t struct {
 	Handler http.Handler
 }
 
-func (self Cors_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (self *Cors_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Add("Access-Control-Allow-Methods", "*")
