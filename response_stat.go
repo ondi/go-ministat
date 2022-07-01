@@ -67,17 +67,14 @@ func (self *Online_t) MinistatOnline(w http.ResponseWriter, r *http.Request, nam
 }
 
 func (self *Online_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
-	var page_name string
 	switch status {
 	case 401:
-		page_name = "/not_authorized"
+		name = "/not_authorized"
 	case 404:
-		page_name = "/not_found"
-	default:
-		page_name = name
+		name = "/not_found"
 	}
 	mutator := []tag.Mutator{
-		tag.Upsert(TagPageName, page_name),
+		tag.Upsert(TagPageName, name),
 	}
 	if v := log.ContextGet(r.Context()); v != nil {
 		mutator = append(mutator, tag.Upsert(TagPageError, strings.Join(v.Values(), ",")))
