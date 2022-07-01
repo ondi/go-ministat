@@ -16,13 +16,13 @@ import (
 	"go.opencensus.io/tag"
 )
 
-var ServerRequestCount = stats.Int64(
-	"http/server/page",
+var PageRequest = stats.Int64(
+	"http/request/page",
 	"Number of HTTP requests per page",
 	stats.UnitDimensionless,
 )
 
-var ServerLatency = stats.Float64(
+var PageLatency = stats.Float64(
 	"http/latency/page",
 	"End-to-end latency",
 	stats.UnitMilliseconds,
@@ -31,22 +31,23 @@ var ServerLatency = stats.Float64(
 var TagPageName = tag.MustNewKey("page")
 var TagPageError = tag.MustNewKey("error")
 
-var latyncy_distr = view.Distribution(100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000)
+var latyncy_distr = view.Distribution(100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000)
 
-var ServerRequestCountView = &view.View{
-	Name:        "http/server/page",
-	Description: "Count of HTTP requests per page",
-	TagKeys:     []tag.Key{TagPageName, TagPageError},
-	Measure:     ServerRequestCount,
-	Aggregation: view.Count(),
-}
-
-var ServerRequestLatencyView = &view.View{
-	Name:        "http/page/latency",
-	Description: "Latency of HTTP requests per page",
-	TagKeys:     []tag.Key{TagPageName},
-	Measure:     ServerLatency,
-	Aggregation: latyncy_distr,
+var Views = []*view.View{
+	{
+		Name:        "http/request/page",
+		Description: "Count of HTTP requests per page",
+		TagKeys:     []tag.Key{TagPageName, TagPageError},
+		Measure:     PageRequest,
+		Aggregation: view.Count(),
+	},
+	{
+		Name:        "http/latency/page",
+		Description: "Latency of HTTP requests per page",
+		TagKeys:     []tag.Key{TagPageName},
+		Measure:     PageLatency,
+		Aggregation: latyncy_distr,
+	},
 }
 
 type Online_t struct {
@@ -83,6 +84,6 @@ func (self *Online_t) MinistatDuration(r *http.Request, name string, status int,
 	}
 	ctx, err := tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, ServerRequestCount.M(1), ServerLatency.M(float64(diff.Milliseconds())))
+		stats.Record(ctx, PageRequest.M(1), PageLatency.M(float64(diff.Milliseconds())))
 	}
 }
