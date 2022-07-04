@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/google/uuid v1.3.0
 	github.com/ondi/go-cache v0.0.0-20220704124719-e18a5c0fa086
-	github.com/ondi/go-log v0.0.0-20220704125903-39e58bb21677
+	github.com/ondi/go-log v0.0.0-20220704172527-6c354dd1beae
 	github.com/ondi/go-tst v0.0.0-20210920150321-3f1dfea3e805
 	github.com/ondi/go-unique v0.0.0-20220704125142-a27aa1028568
 	go.opencensus.io v0.23.0
@@ -14,7 +14,7 @@ require (
 
 require (
 	github.com/google/go-cmp v0.5.7 // indirect
-	github.com/ondi/go-circular v0.0.0-20210820211818-b5fe0a3a1f71 // indirect
-	github.com/ondi/go-queue v0.0.0-20210820212020-bdc17d37111b // indirect
+	github.com/ondi/go-circular v0.0.0-20220704164630-c29e6fae4bc2 // indirect
+	github.com/ondi/go-queue v0.0.0-20220704171858-3dd355034f96 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 )
