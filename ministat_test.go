@@ -19,13 +19,13 @@ type Evict_t struct {
 	str string
 }
 
-func (self *Evict_t) Value(key interface{}, value unique.Counter) bool {
+func (self *Evict_t) Value(key string, value unique.Counter) bool {
 	self.t.Logf("EVICT: %v", key)
-	assert.Assert(self.t, strings.Contains(key.(string), self.str), key)
+	assert.Assert(self.t, strings.Contains(key, self.str), key)
 	return true
 }
 
-func (self *Evict_t) Evict(f func(f func(key interface{}, value unique.Counter) bool)) {
+func (self *Evict_t) Evict(f func(f func(key string, value unique.Counter) bool)) {
 	f(self.Value)
 }
 

@@ -77,7 +77,7 @@ func (NoOnline_t) MinistatDuration(r *http.Request, name string, status int, dif
 
 type Storage_t struct {
 	mx            sync.Mutex
-	timeline      *cache.Cache_t // key = ts.Truncate(self.truncate), value = *unique.Often_t
+	timeline      *cache.Cache_t[time.Time, *unique.Often_t] // key: ts.Truncate(self.truncate)
 	truncate      time.Duration
 	evict         unique.Evict
 	limit_backlog int
@@ -86,7 +86,7 @@ type Storage_t struct {
 
 func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evict) (self *Storage_t) {
 	self = &Storage_t{
-		timeline:      cache.New(),
+		timeline:      cache.New[time.Time, *unique.Often_t](),
 		truncate:      truncate,
 		evict:         evict,
 		limit_backlog: limit_backlog,
@@ -99,18 +99,18 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	self.mx.Lock()
 	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
-		func() interface{} {
+		func() *unique.Often_t {
 			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	counter, _ = it.Value.(*unique.Often_t).Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
+	counter, _ = it.Value.Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
 	counter.Online++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
 	counter.DurationNum++
 	if self.timeline.Size() > self.limit_backlog {
-		self.evict(self.timeline.Front().Value.(*unique.Often_t).RangeRaw)
+		self.evict(self.timeline.Front().Value.RangeRaw)
 		self.timeline.Remove(self.timeline.Front().Key)
 	}
 	self.mx.Unlock()
@@ -142,7 +142,7 @@ func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Durat
 	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
 }
 
-func (self *Storage_t) MetricList(order cache.MyLess, limit int) (res []Stat_t) {
+func (self *Storage_t) MetricList(order cache.MyLess[string, unique.Counter], limit int) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
@@ -151,15 +151,18 @@ func (self *Storage_t) MetricList(order cache.MyLess, limit int) (res []Stat_t) 
 		}
 		limit--
 		temp := Stat_t{
-			Ts: it.Key.(time.Time),
+			Ts: it.Key,
 		}
-		it.Value.(*unique.Often_t).Range(
+		it.Value.Range(
 			order,
-			func(key interface{}, value unique.Counter) bool {
-				temp.Routes = append(temp.Routes, Route_t{
-					Name:    key.(string),
+			func(key string, value unique.Counter) bool {
+				temp.Routes = append(
+					temp.Routes,
+					Route_t{
+					Name:    key,
 					Counter: *value.(*Counter_t),
-				})
+				},
+			)
 				return true
 			},
 		)
@@ -204,30 +207,30 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
 
-func (self *Middleware_t) MetricList(order cache.MyLess, limit int) (res []Stat_t) {
+func (self *Middleware_t) MetricList(order cache.MyLess[string, unique.Counter], limit int) (res []Stat_t) {
 	return self.storage.MetricList(order, limit)
 }
 
 type LessHits_t struct{}
 
-func (LessHits_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+func (LessHits_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationNum
 }
 
 type LessProcessed_t struct{}
 
-func (LessProcessed_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+func (LessProcessed_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).Processed < b.Value.(*Counter_t).Processed
 }
 
 type LessDuration_t struct{}
 
-func (LessDuration_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
+func (LessDuration_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).DurationSum/a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationSum/b.Value.(*Counter_t).DurationNum
 }
 
 type LessName_t struct{}
 
-func (LessName_t) Less(a *cache.Value_t, b *cache.Value_t) bool {
-	return a.Key.(string) < b.Key.(string)
+func (LessName_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+	return a.Key < b.Key
 }
