@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/ondi/go-cache v0.0.0-20220703190933-441a16d68a86
+	github.com/ondi/go-cache v0.0.0-20220704124719-e18a5c0fa086
 	github.com/ondi/go-log v0.0.0-20220704094051-819be0de9af3
 	github.com/ondi/go-tst v0.0.0-20210920150321-3f1dfea3e805
 	github.com/ondi/go-unique v0.0.0-20220704101141-9f38a929daea

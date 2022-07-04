@@ -142,7 +142,7 @@ func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Durat
 	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
 }
 
-func (self *Storage_t) MetricList(order cache.MyLess[string, unique.Counter], limit int) (res []Stat_t) {
+func (self *Storage_t) MetricList(order cache.Less[string, unique.Counter], limit int) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
@@ -207,30 +207,22 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
 
-func (self *Middleware_t) MetricList(order cache.MyLess[string, unique.Counter], limit int) (res []Stat_t) {
+func (self *Middleware_t) MetricList(order cache.Less[string, unique.Counter], limit int) (res []Stat_t) {
 	return self.storage.MetricList(order, limit)
 }
 
-type LessHits_t struct{}
-
-func (LessHits_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+func LessHits(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationNum
 }
 
-type LessProcessed_t struct{}
-
-func (LessProcessed_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+func LessProcessed(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).Processed < b.Value.(*Counter_t).Processed
 }
 
-type LessDuration_t struct{}
-
-func (LessDuration_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+func LessDuration(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Value.(*Counter_t).DurationSum/a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationSum/b.Value.(*Counter_t).DurationNum
 }
 
-type LessName_t struct{}
-
-func (LessName_t) Less(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+func LessName(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
 	return a.Key < b.Key
 }
