@@ -4,10 +4,10 @@ go 1.18
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/ondi/go-cache v0.0.0-20220704124719-e18a5c0fa086
-	github.com/ondi/go-log v0.0.0-20220705094752-594bd5d2de77
+	github.com/ondi/go-cache v0.0.0-20220706043832-a192bbb22b21
+	github.com/ondi/go-log v0.0.0-20220706045131-bc18d8b982e6
 	github.com/ondi/go-tst v0.0.0-20210920150321-3f1dfea3e805
-	github.com/ondi/go-unique v0.0.0-20220704125142-a27aa1028568
+	github.com/ondi/go-unique v0.0.0-20220706044211-301d502522a8
 	go.opencensus.io v0.23.0
 	gotest.tools v2.2.0+incompatible
 )

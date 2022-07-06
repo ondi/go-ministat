@@ -13,6 +13,8 @@ import (
 	"github.com/ondi/go-unique"
 )
 
+type Less_t = unique.Less_t
+
 type PageName interface {
 	GetPageName(r *http.Request) (res string)
 }
@@ -142,7 +144,7 @@ func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Durat
 	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
 }
 
-func (self *Storage_t) MetricList(order cache.Less[string, unique.Counter], limit int) (res []Stat_t) {
+func (self *Storage_t) MetricList(order Less_t, limit int) (res []Stat_t) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
@@ -207,7 +209,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
 
-func (self *Middleware_t) MetricList(order cache.Less[string, unique.Counter], limit int) (res []Stat_t) {
+func (self *Middleware_t) MetricList(order Less_t, limit int) (res []Stat_t) {
 	return self.storage.MetricList(order, limit)
 }
 
