@@ -47,16 +47,6 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.count
 }
 
-type Route_t struct {
-	Name    string
-	Counter Counter_t
-}
-
-type Stat_t struct {
-	Ts     time.Time
-	Routes []Route_t
-}
-
 type Online interface {
 	MinistatContext(r *http.Request) *http.Request
 	MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool
@@ -144,33 +134,28 @@ func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Durat
 	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
 }
 
-func (self *Storage_t) MetricList(order Less_t, limit int) (res []Stat_t) {
+func (self *Storage_t) MetricListTs(f func(time.Time) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
-		if limit == 0 {
+		if !f(it.Key) {
 			return
 		}
-		limit--
-		temp := Stat_t{
-			Ts: it.Key,
-		}
+	}
+	return
+}
+
+func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name string, counter Counter_t) bool) {
+	self.mx.Lock()
+	defer self.mx.Unlock()
+	if it, ok := self.timeline.Find(ts); ok {
 		it.Value.Range(
 			order,
 			func(key string, value unique.Counter) bool {
-				temp.Routes = append(
-					temp.Routes,
-					Route_t{
-					Name:    key,
-					Counter: *value.(*Counter_t),
-				},
-			)
-				return true
+				return f(key, *value.(*Counter_t))
 			},
 		)
-		res = append(res, temp)
 	}
-	return
 }
 
 type Middleware_t struct {
@@ -207,10 +192,6 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.online.MinistatDuration(r, name, writer.status_code, diff)
 
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
-}
-
-func (self *Middleware_t) MetricList(order Less_t, limit int) (res []Stat_t) {
-	return self.storage.MetricList(order, limit)
 }
 
 func LessHits(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
