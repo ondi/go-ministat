@@ -40,8 +40,8 @@ github.com/ondi/go-log v0.0.0-20220706045131-bc18d8b982e6 h1:XcShUHo9ALoewbxAkJN
 github.com/ondi/go-log v0.0.0-20220706045131-bc18d8b982e6/go.mod h1:N4aHS7CSg9BjbEGW74MYMkPgMJF6D5/L+FouEq5okew=
 github.com/ondi/go-queue v0.0.0-20220705093149-83582bcfd7bb h1:N7coV2joQQGEjaPwArZi7tA//qzRAnuT8z1yJLYSWh8=
 github.com/ondi/go-queue v0.0.0-20220705093149-83582bcfd7bb/go.mod h1:KIZLLN94jl5B8MT5WMYIIQncMItr2shdvtD/WE6DFHw=
-github.com/ondi/go-tst v0.0.0-20210920150321-3f1dfea3e805 h1:aLE2RnTw+NsKpC/Bn+iZn50VWMvWRvyftf1eoWCjKRM=
-github.com/ondi/go-tst v0.0.0-20210920150321-3f1dfea3e805/go.mod h1:8Fy6qJ6cyArUy3247RNvcYblQvD9p6cPjXX7cqSC0F4=
+github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6 h1:Rt+KTj5bzEg/rYJEyEkpPhYNNkWSAe9OczFmuWPc8s4=
+github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6/go.mod h1:6kGHTJHkpxi9KFaH5mupvt+MBWGuPvdMjpIxu6l0Pmg=
 github.com/ondi/go-unique v0.0.0-20220706044211-301d502522a8 h1:Lwm4XLhw35UERUjT2KqKZ1Kr0bZ8z03I0PGHeQI0QNU=
 github.com/ondi/go-unique v0.0.0-20220706044211-301d502522a8/go.mod h1:WbwDzAoFd+/JmumOD9VEm8QRGTYAKZCya/7ulPawH40=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

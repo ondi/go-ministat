@@ -56,13 +56,13 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 
 type ResponseLogger_t struct {
 	next    http.Handler
-	exclude *tst.Tree1_t
+	exclude *tst.Tree1_t[int]
 }
 
 func NewResponseLogger(next http.Handler, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:    next,
-		exclude: &tst.Tree1_t{},
+		exclude: &tst.Tree1_t[int]{},
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
@@ -74,12 +74,12 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	reader := Reader_t{ReadCloser: r.Body}
 	r.Body = &reader
 	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}}
-	value := self.exclude.Search(r.URL.Path)
-	if value == nil {
+	_, ok := self.exclude.Search(r.URL.Path)
+	if !ok {
 		log.TraceCtx(r.Context(), "REQUEST: %v", r.URL.String())
 	}
 	self.next.ServeHTTP(&writer, r)
-	if value == nil {
+	if !ok {
 		var errors []string
 		if v := log.ContextGet(r.Context()); v != nil {
 			errors = v.Values()
