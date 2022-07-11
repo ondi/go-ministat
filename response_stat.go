@@ -19,19 +19,19 @@ import (
 	"go.opencensus.io/tag"
 )
 
-var PageRequest = stats.Int64(
+var pageRequest = stats.Int64(
 	"http/request/page",
 	"Number of HTTP requests per page",
 	stats.UnitDimensionless,
 )
 
-var PagePending = stats.Int64(
+var pagePending = stats.Int64(
 	"http/pending/page",
 	"Number of HTTP pending requests per page",
 	stats.UnitDimensionless,
 )
 
-var PageLatency = stats.Float64(
+var pageLatency = stats.Float64(
 	"http/latency/page",
 	"End-to-end latency",
 	stats.UnitMilliseconds,
@@ -47,21 +47,21 @@ var Views = []*view.View{
 		Name:        "http/request/page",
 		Description: "Count of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName, TagPageError},
-		Measure:     PageRequest,
+		Measure:     pageRequest,
 		Aggregation: view.Count(),
 	},
 	{
 		Name:        "http/pending/page",
 		Description: "Count of HTTP pending requests per page",
 		TagKeys:     []tag.Key{TagPageName},
-		Measure:     PagePending,
+		Measure:     pagePending,
 		Aggregation: view.Sum(),
 	},
 	{
 		Name:        "http/latency/page",
 		Description: "Latency of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName},
-		Measure:     PageLatency,
+		Measure:     pageLatency,
 		Aggregation: LatencyDist,
 	},
 }
@@ -70,26 +70,26 @@ type Online_t struct {
 	Count int64
 }
 
-func (self *Online_t) MinistatContext(r *http.Request) *http.Request {
-	return r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
-}
+func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
+	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
 
-func (self *Online_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
 	if err == nil {
-		stats.Record(ctx, PagePending.M(1))
+		stats.Record(ctx, pagePending.M(1))
 	}
+
 	if count >= self.Count {
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return false
+		return r, false
 	}
-	return true
+
+	return r, true
 }
 
-func (self *Online_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
+func (self *Online_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
 	if err == nil {
-		stats.Record(ctx, PagePending.M(-1))
+		stats.Record(ctx, pagePending.M(-1))
 	}
 
 	if status > 400 && status < 500 {
@@ -104,6 +104,6 @@ func (self *Online_t) MinistatDuration(r *http.Request, name string, status int,
 	}
 	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, PageRequest.M(1), PageLatency.M(float64(diff.Milliseconds())))
+		stats.Record(ctx, pageRequest.M(1), pageLatency.M(float64(diff.Milliseconds())))
 	}
 }

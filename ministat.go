@@ -15,13 +15,7 @@ import (
 
 type Less_t = unique.Less_t
 
-type PageName interface {
-	GetPageName(r *http.Request) (res string)
-}
-
-type PageName_t struct{}
-
-func (PageName_t) GetPageName(r *http.Request) (res string) {
+func GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
 
@@ -48,22 +42,17 @@ func (self *Counter_t) CounterGet() int64 {
 }
 
 type Online interface {
-	MinistatContext(r *http.Request) *http.Request
-	MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool
-	MinistatDuration(r *http.Request, name string, status int, diff time.Duration)
+	MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool)
+	MinistatEnd(r *http.Request, name string, status int, diff time.Duration)
 }
 
 type NoOnline_t struct{}
 
-func (NoOnline_t) MinistatContext(r *http.Request) *http.Request {
-	return r
+func (NoOnline_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
+	return r, true
 }
 
-func (NoOnline_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool {
-	return true
-}
-
-func (NoOnline_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
+func (NoOnline_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
 	return
 }
 
@@ -161,11 +150,11 @@ func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name 
 type Middleware_t struct {
 	storage   *Storage_t
 	next      http.Handler
-	page_name PageName
+	page_name func(*http.Request) string
 	online    Online
 }
 
-func NewMiddleware(storage *Storage_t, next http.Handler, page_name PageName, online Online) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, next http.Handler, page_name func(*http.Request) string, online Online) (self *Middleware_t) {
 	self = &Middleware_t{
 		storage:   storage,
 		next:      next,
@@ -177,18 +166,18 @@ func NewMiddleware(storage *Storage_t, next http.Handler, page_name PageName, on
 
 func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	name := self.page_name.GetPageName(r)
+	name := self.page_name(r)
 	counter := self.storage.MetricBegin(name, start)
 
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
-	r = self.online.MinistatContext(r)
-	if self.online.MinistatOnline(&writer, r, name, counter.Online) {
+	r, ok := self.online.MinistatBegin(&writer, r, name, counter.Online)
+	if ok {
 		self.next.ServeHTTP(&writer, r)
 	}
 
 	diff := time.Since(start)
-	self.online.MinistatDuration(r, name, writer.status_code, diff)
+	self.online.MinistatEnd(r, name, writer.status_code, diff)
 
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
