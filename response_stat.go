@@ -1,5 +1,7 @@
 //
-//
+// RPM = sum(irate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
+// LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le))
+// PENDING = sum(rate(http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
 //
 
 package ministat
@@ -73,13 +75,13 @@ func (self *Online_t) MinistatContext(r *http.Request) *http.Request {
 }
 
 func (self *Online_t) MinistatOnline(w http.ResponseWriter, r *http.Request, name string, count int64) bool {
-	if count >= self.Count {
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return false
-	}
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
 	if err == nil {
 		stats.Record(ctx, PagePending.M(1))
+	}
+	if count >= self.Count {
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		return false
 	}
 	return true
 }

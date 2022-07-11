@@ -177,13 +177,12 @@ func NewMiddleware(storage *Storage_t, next http.Handler, page_name PageName, on
 
 func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-
 	name := self.page_name.GetPageName(r)
 	counter := self.storage.MetricBegin(name, start)
 
-	r = self.online.MinistatContext(r)
+	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
+	r = self.online.MinistatContext(r)
 	if self.online.MinistatOnline(&writer, r, name, counter.Online) {
 		self.next.ServeHTTP(&writer, r)
 	}
