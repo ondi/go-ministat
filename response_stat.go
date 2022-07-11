@@ -6,6 +6,7 @@ package ministat
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,12 @@ var PageRequest = stats.Int64(
 	stats.UnitDimensionless,
 )
 
+var PagePending = stats.Int64(
+	"http/pending/page",
+	"Number of HTTP pending requests per page",
+	stats.UnitDimensionless,
+)
+
 var PageLatency = stats.Float64(
 	"http/latency/page",
 	"End-to-end latency",
@@ -31,7 +38,7 @@ var PageLatency = stats.Float64(
 var TagPageName = tag.MustNewKey("page")
 var TagPageError = tag.MustNewKey("error")
 
-var latyncy_distr = view.Distribution(100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000)
+var LatencyDist = view.Distribution(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000)
 
 var Views = []*view.View{
 	{
@@ -42,11 +49,18 @@ var Views = []*view.View{
 		Aggregation: view.Count(),
 	},
 	{
+		Name:        "http/pending/page",
+		Description: "Count of HTTP pending requests per page",
+		TagKeys:     []tag.Key{TagPageName},
+		Measure:     PagePending,
+		Aggregation: view.Sum(),
+	},
+	{
 		Name:        "http/latency/page",
 		Description: "Latency of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     PageLatency,
-		Aggregation: latyncy_distr,
+		Aggregation: LatencyDist,
 	},
 }
 
@@ -63,23 +77,30 @@ func (self *Online_t) MinistatOnline(w http.ResponseWriter, r *http.Request, nam
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return false
 	}
+	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
+	if err == nil {
+		stats.Record(ctx, PagePending.M(1))
+	}
 	return true
 }
 
 func (self *Online_t) MinistatDuration(r *http.Request, name string, status int, diff time.Duration) {
-	switch status {
-	case 401:
-		name = "/not_authorized"
-	case 404:
-		name = "/not_found"
+	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
+	if err == nil {
+		stats.Record(ctx, PagePending.M(-1))
 	}
+
+	if status > 400 && status < 500 {
+		name = "/status" + strconv.FormatInt(int64(status), 10)
+	}
+
 	mutator := []tag.Mutator{
 		tag.Upsert(TagPageName, name),
 	}
 	if v := log.ContextGet(r.Context()); v != nil {
 		mutator = append(mutator, tag.Upsert(TagPageError, strings.Join(v.Values(), ",")))
 	}
-	ctx, err := tag.New(r.Context(), mutator...)
+	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
 		stats.Record(ctx, PageRequest.M(1), PageLatency.M(float64(diff.Milliseconds())))
 	}
