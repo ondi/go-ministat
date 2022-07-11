@@ -33,11 +33,8 @@ type Counter_t struct {
 	Status000   int64
 }
 
-func (self *Counter_t) CounterAdd(a int64) {
+func (self *Counter_t) CounterAdd(a int64) int64 {
 	self.count += a
-}
-
-func (self *Counter_t) CounterGet() int64 {
 	return self.count
 }
 
@@ -46,19 +43,9 @@ type Online interface {
 	MinistatEnd(r *http.Request, name string, status int, diff time.Duration)
 }
 
-type NoOnline_t struct{}
-
-func (NoOnline_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
-	return r, true
-}
-
-func (NoOnline_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
-	return
-}
-
 type Storage_t struct {
 	mx            sync.Mutex
-	timeline      *cache.Cache_t[time.Time, *unique.Often_t] // key: ts.Truncate(self.truncate)
+	timeline      *cache.Cache_t[time.Time, *unique.Often_t]
 	truncate      time.Duration
 	evict         unique.Evict
 	limit_backlog int
@@ -91,7 +78,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	}
 	counter.DurationNum++
 	if self.timeline.Size() > self.limit_backlog {
-		self.evict(self.timeline.Front().Value.RangeRaw)
+		self.evict(self.timeline.Front().Value.Range)
 		self.timeline.Remove(self.timeline.Front().Key)
 	}
 	self.mx.Unlock()
@@ -138,48 +125,13 @@ func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name 
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	if it, ok := self.timeline.Find(ts); ok {
-		it.Value.Range(
+		it.Value.RangeSort(
 			order,
 			func(key string, value unique.Counter) bool {
 				return f(key, *value.(*Counter_t))
 			},
 		)
 	}
-}
-
-type Middleware_t struct {
-	storage   *Storage_t
-	next      http.Handler
-	page_name func(*http.Request) string
-	online    Online
-}
-
-func NewMiddleware(storage *Storage_t, next http.Handler, page_name func(*http.Request) string, online Online) (self *Middleware_t) {
-	self = &Middleware_t{
-		storage:   storage,
-		next:      next,
-		page_name: page_name,
-		online:    online,
-	}
-	return
-}
-
-func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	name := self.page_name(r)
-	counter := self.storage.MetricBegin(name, start)
-
-	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-
-	r, ok := self.online.MinistatBegin(&writer, r, name, counter.Online)
-	if ok {
-		self.next.ServeHTTP(&writer, r)
-	}
-
-	diff := time.Since(start)
-	self.online.MinistatEnd(r, name, writer.status_code, diff)
-
-	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
 
 func LessHits(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {

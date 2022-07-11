@@ -7,7 +7,7 @@ require (
 	github.com/ondi/go-cache v0.0.0-20220706043832-a192bbb22b21
 	github.com/ondi/go-log v0.0.0-20220706045131-bc18d8b982e6
 	github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6
-	github.com/ondi/go-unique v0.0.0-20220706044211-301d502522a8
+	github.com/ondi/go-unique v0.0.0-20220711210211-444b4a147c34
 	go.opencensus.io v0.23.0
 	gotest.tools v2.2.0+incompatible
 )

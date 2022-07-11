@@ -66,6 +66,16 @@ var Views = []*view.View{
 	},
 }
 
+type NoOnline_t struct{}
+
+func (NoOnline_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
+	return r, true
+}
+
+func (NoOnline_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
+	return
+}
+
 type Online_t struct {
 	Count int64
 }
