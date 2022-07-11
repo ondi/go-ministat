@@ -1,5 +1,5 @@
 //
-// RPM = sum(irate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
+// RPM = sum(rate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
 // LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le))
 // PENDING = sum(rate(http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
 //
