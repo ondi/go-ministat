@@ -1,7 +1,7 @@
 //
 // RPM = sum(rate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
 // LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le))
-// PENDING = sum(rate(http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
+// PENDING = http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}
 //
 
 package ministat
@@ -31,8 +31,14 @@ var pagePending = stats.Int64(
 	stats.UnitDimensionless,
 )
 
-var pageLatency = stats.Float64(
+var pageLatencyDist = stats.Float64(
 	"http/latency/page",
+	"End-to-end latency",
+	stats.UnitMilliseconds,
+)
+
+var pageLatencyAvg = stats.Float64(
+	"http/latency_avg/page",
 	"End-to-end latency",
 	stats.UnitMilliseconds,
 )
@@ -61,8 +67,15 @@ var Views = []*view.View{
 		Name:        "http/latency/page",
 		Description: "Latency of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pageLatency,
+		Measure:     pageLatencyDist,
 		Aggregation: LatencyDist,
+	},
+	{
+		Name:        "http/latency_avg/page",
+		Description: "Latency of HTTP requests per page",
+		TagKeys:     []tag.Key{TagPageName},
+		Measure:     pageLatencyAvg,
+		Aggregation: view.LastValue(),
 	},
 }
 
@@ -100,7 +113,7 @@ func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, page
 	return r, true
 }
 
-func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
+func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration, avg time.Duration) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(-1))
@@ -118,6 +131,6 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 	}
 	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, pageRequest.M(1), pageLatency.M(float64(diff.Milliseconds())))
+		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff.Milliseconds())), pageLatencyAvg.M(float64(avg.Milliseconds())))
 	}
 }

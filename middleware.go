@@ -11,7 +11,7 @@ import (
 
 type Online interface {
 	MinistatBegin(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool)
-	MinistatEnd(r *http.Request, page string, status int, diff time.Duration)
+	MinistatEnd(r *http.Request, page string, status int, diff time.Duration, avg time.Duration)
 }
 
 type Middleware_t struct {
@@ -44,7 +44,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
-	self.online.MinistatEnd(r, page, writer.status_code, diff)
+	self.online.MinistatEnd(r, page, writer.status_code, diff, counter.DurationSum/counter.DurationNum)
 
 	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
 }
