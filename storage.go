@@ -33,6 +33,8 @@ func (self *Counter_t) CounterAdd(a int64) int64 {
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
+func Drop(f func(f func(key string, value *Counter_t) bool)) {}
+
 type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
