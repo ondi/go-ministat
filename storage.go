@@ -5,7 +5,6 @@
 package ministat
 
 import (
-	"net/http"
 	"sync"
 	"time"
 
@@ -14,10 +13,6 @@ import (
 )
 
 type Less_t = unique.Less_t
-
-func GetPageName(r *http.Request) (res string) {
-	return r.URL.Path
-}
 
 type Counter_t struct {
 	count       int64 // reservoir sampling
@@ -36,11 +31,6 @@ type Counter_t struct {
 func (self *Counter_t) CounterAdd(a int64) int64 {
 	self.count += a
 	return self.count
-}
-
-type Online interface {
-	MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool)
-	MinistatEnd(r *http.Request, name string, status int, diff time.Duration)
 }
 
 type Storage_t struct {

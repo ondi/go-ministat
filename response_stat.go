@@ -40,7 +40,7 @@ var pageLatency = stats.Float64(
 var TagPageName = tag.MustNewKey("page")
 var TagPageError = tag.MustNewKey("error")
 
-var LatencyDist = view.Distribution(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000)
+var LatencyDist = view.Distribution(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000)
 
 var Views = []*view.View{
 	{
@@ -66,6 +66,10 @@ var Views = []*view.View{
 	},
 }
 
+func GetPageName(r *http.Request) (res string) {
+	return r.URL.Path
+}
+
 type NoOnline_t struct{}
 
 func (NoOnline_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
@@ -80,15 +84,15 @@ type Online_t struct {
 	Count int64
 }
 
-func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
+func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
 
-	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
+	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(1))
 	}
 
-	if count >= self.Count {
+	if online >= self.Count {
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return r, false
 	}
@@ -96,18 +100,18 @@ func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name
 	return r, true
 }
 
-func (self *Online_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, name))
+func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
+	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(-1))
 	}
 
 	if status > 400 && status < 500 {
-		name = "/status" + strconv.FormatInt(int64(status), 10)
+		page = "/status" + strconv.FormatInt(int64(status), 10)
 	}
 
 	mutator := []tag.Mutator{
-		tag.Upsert(TagPageName, name),
+		tag.Upsert(TagPageName, page),
 	}
 	if v := log.ContextGet(r.Context()); v != nil {
 		mutator = append(mutator, tag.Upsert(TagPageError, strings.Join(v.Values(), ",")))
