@@ -12,8 +12,6 @@ import (
 	"github.com/ondi/go-unique"
 )
 
-type Less_t = unique.Less_t
-
 type Counter_t struct {
 	count       int64 // reservoir sampling
 	Online      int64
@@ -33,18 +31,20 @@ func (self *Counter_t) CounterAdd(a int64) int64 {
 	return self.count
 }
 
+type Less_t = cache.Less_t[string, *Counter_t]
+
 type Storage_t struct {
 	mx            sync.Mutex
-	timeline      *cache.Cache_t[time.Time, *unique.Often_t]
+	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
 	truncate      time.Duration
-	evict         unique.Evict
+	evict         unique.Evict[*Counter_t]
 	limit_backlog int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evict) (self *Storage_t) {
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evict[*Counter_t]) (self *Storage_t) {
 	self = &Storage_t{
-		timeline:      cache.New[time.Time, *unique.Often_t](),
+		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		evict:         evict,
 		limit_backlog: limit_backlog,
@@ -57,11 +57,11 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	self.mx.Lock()
 	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
-		func() *unique.Often_t {
+		func() *unique.Often_t[*Counter_t] {
 			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	counter, _ = it.Value.Add(name, func() unique.Counter { return &Counter_t{} }).(*Counter_t)
+	counter = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
 	counter.Online++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
@@ -117,25 +117,25 @@ func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name 
 	if it, ok := self.timeline.Find(ts); ok {
 		it.Value.RangeSort(
 			order,
-			func(key string, value unique.Counter) bool {
-				return f(key, *value.(*Counter_t))
+			func(key string, value *Counter_t) bool {
+				return f(key, *value)
 			},
 		)
 	}
 }
 
-func LessHits(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
-	return a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationNum
+func LessHits(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+	return a.Value.DurationNum < b.Value.DurationNum
 }
 
-func LessProcessed(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
-	return a.Value.(*Counter_t).Processed < b.Value.(*Counter_t).Processed
+func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+	return a.Value.Processed < b.Value.Processed
 }
 
-func LessDuration(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
-	return a.Value.(*Counter_t).DurationSum/a.Value.(*Counter_t).DurationNum < b.Value.(*Counter_t).DurationSum/b.Value.(*Counter_t).DurationNum
+func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+	return a.Value.DurationSum/a.Value.DurationNum < b.Value.DurationSum/b.Value.DurationNum
 }
 
-func LessName(a *cache.Value_t[string, unique.Counter], b *cache.Value_t[string, unique.Counter]) bool {
+func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
 	return a.Key < b.Key
 }
