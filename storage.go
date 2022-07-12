@@ -13,17 +13,18 @@ import (
 )
 
 type Counter_t struct {
-	count       int64 // reservoir sampling
-	Online      int64
-	OnlineMax   int64
-	Processed   int
-	DurationNum time.Duration
-	DurationSum time.Duration
-	DurationMax time.Duration
-	Status200   int64
-	Status400   int64
-	Status500   int64
-	Status000   int64
+	count         int64 // reservoir sampling
+	Online        int64
+	OnlineMax     int64
+	Hits          int64
+	Processed     int64
+	DurationCount time.Duration
+	DurationSum   time.Duration
+	DurationMax   time.Duration
+	Status200     int64
+	Status400     int64
+	Status500     int64
+	Status000     int64
 }
 
 func (self *Counter_t) CounterAdd(a int64) int64 {
@@ -68,7 +69,8 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	counter.DurationNum++
+	counter.Hits++
+	counter.DurationCount++
 	if self.timeline.Size() > self.limit_backlog {
 		self.evict(self.timeline.Front().Value.Range)
 		self.timeline.Remove(self.timeline.Front().Key)
@@ -81,7 +83,11 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
-	counter.Processed += processed
+	counter.Processed += int64(processed)
+	if counter.DurationCount >= 1000 {
+		counter.DurationSum = counter.DurationSum/counter.DurationCount
+		counter.DurationCount = 1
+	}
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
@@ -95,7 +101,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	default:
 		counter.Status000++
 	}
-	avg = counter.DurationSum/counter.DurationNum
+	avg = counter.DurationSum/counter.DurationCount
 	self.mx.Unlock()
 	return
 }
@@ -129,7 +135,7 @@ func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name 
 }
 
 func LessHits(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.DurationNum < b.Value.DurationNum
+	return a.Value.Hits < b.Value.Hits
 }
 
 func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
@@ -137,7 +143,7 @@ func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string
 }
 
 func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.DurationSum/a.Value.DurationNum < b.Value.DurationSum/b.Value.DurationNum
+	return a.Value.DurationSum/a.Value.DurationCount < b.Value.DurationSum/b.Value.DurationCount
 }
 
 func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
