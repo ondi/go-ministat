@@ -37,12 +37,6 @@ var pageLatencyDist = stats.Float64(
 	stats.UnitMilliseconds,
 )
 
-var pageLatencyAvg = stats.Float64(
-	"http/latency_avg/page",
-	"End-to-end latency",
-	stats.UnitMilliseconds,
-)
-
 var TagPageName = tag.MustNewKey("page")
 var TagPageError = tag.MustNewKey("error")
 
@@ -69,13 +63,6 @@ var Views = []*view.View{
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     pageLatencyDist,
 		Aggregation: LatencyDist,
-	},
-	{
-		Name:        "http/latency_avg/page",
-		Description: "Latency of HTTP requests per page",
-		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pageLatencyAvg,
-		Aggregation: view.LastValue(),
 	},
 }
 
@@ -119,8 +106,9 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 		stats.Record(ctx, pagePending.M(-1))
 	}
 
-	if status > 400 && status < 500 {
-		page = "/status" + strconv.FormatInt(int64(status), 10)
+	switch status {
+	case 401, 404:
+		page = "/page_" + strconv.FormatInt(int64(status), 10)
 	}
 
 	mutator := []tag.Mutator{
@@ -131,6 +119,6 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 	}
 	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencyAvg.M(float64(avg)/1e6))
+		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6))
 	}
 }
