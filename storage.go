@@ -95,7 +95,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	default:
 		counter.Status000++
 	}
-	avg = counter.DurationNum/counter.DurationNum
+	avg = counter.DurationSum/counter.DurationNum
 	self.mx.Unlock()
 	return
 }

@@ -131,6 +131,6 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 	}
 	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff.Milliseconds())), pageLatencyAvg.M(float64(avg.Milliseconds())))
+		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencyAvg.M(float64(avg)/1e6))
 	}
 }
