@@ -44,7 +44,6 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
-	self.online.MinistatEnd(r, page, writer.status_code, diff, counter.DurationSum/counter.DurationNum)
-
-	self.storage.MetricEnd(counter, diff, 1, writer.status_code)
+	avg := self.storage.MetricEnd(counter, diff, 1, writer.status_code)
+	self.online.MinistatEnd(r, page, writer.status_code, diff, avg)
 }

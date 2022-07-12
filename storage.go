@@ -77,7 +77,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) (avg time.Duration) {
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
@@ -95,7 +95,9 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	default:
 		counter.Status000++
 	}
+	avg = counter.DurationNum/counter.DurationNum
 	self.mx.Unlock()
+	return
 }
 
 func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Duration, processed int, status_code int) {
