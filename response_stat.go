@@ -100,7 +100,7 @@ func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, page
 	return r, true
 }
 
-func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration, avg time.Duration) {
+func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(-1))
