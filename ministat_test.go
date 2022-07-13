@@ -13,23 +13,23 @@ import (
 	"gotest.tools/assert"
 )
 
-type Evict_t struct {
+type EvictTest_t struct {
 	t   *testing.T
 	str string
 }
 
-func (self *Evict_t) Value(key string, value *Counter_t) bool {
-	self.t.Logf("EVICT: %v", key)
-	assert.Assert(self.t, strings.Contains(key, self.str), key)
-	return true
-}
-
-func (self *Evict_t) Evict(f func(f func(key string, value *Counter_t) bool)) {
-	f(self.Value)
+func (self *EvictTest_t) Evict(f func(f func(key string, value *Counter_t) bool)) {
+	f(
+		func(key string, value *Counter_t) bool {
+			self.t.Logf("EVICT: %v", key)
+			assert.Assert(self.t, strings.Contains(key, self.str), key)
+			return true
+		},
+	)
 }
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 10, time.Second, (&Evict_t{t: t, str: "test1"}).Evict)
+	s := NewStorage(0, 10, time.Second, (&EvictTest_t{t: t, str: "test1"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -38,7 +38,7 @@ func Test_Evict01(t *testing.T) {
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 10, time.Second, (&Evict_t{t: t, str: "test2"}).Evict)
+	s := NewStorage(1, 10, time.Second, (&EvictTest_t{t: t, str: "test2"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {

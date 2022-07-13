@@ -7,8 +7,8 @@
 package ministat
 
 import (
+	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +35,18 @@ var pageLatencyDist = stats.Float64(
 	"http/latency/page",
 	"End-to-end latency",
 	stats.UnitMilliseconds,
+)
+
+var pageLatencySum = stats.Int64(
+	"http/latency_sum",
+	"End-to-end latency",
+	stats.UnitDimensionless,
+)
+
+var pageLatencyCount = stats.Int64(
+	"http/latency_count",
+	"End-to-end latency",
+	stats.UnitDimensionless,
 )
 
 var TagPageName = tag.MustNewKey("page")
@@ -64,51 +76,72 @@ var Views = []*view.View{
 		Measure:     pageLatencyDist,
 		Aggregation: LatencyDist,
 	},
+	{
+		Name:        "http/latency_sum",
+		Description: "Latency of HTTP requests per page",
+		TagKeys:     []tag.Key{TagPageName},
+		Measure:     pageLatencySum,
+		Aggregation: view.Sum(),
+	},
+	{
+		Name:        "http/latency_count",
+		Description: "Latency of HTTP requests per page",
+		TagKeys:     []tag.Key{TagPageName},
+		Measure:     pageLatencyCount,
+		Aggregation: view.Sum(),
+	},
 }
 
 func GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
 
-type NoOnline_t struct{}
+type NoOnline_t struct {
+	Count int64
+}
 
-func (NoOnline_t) MinistatBegin(w http.ResponseWriter, r *http.Request, name string, count int64) (*http.Request, bool) {
+func (self *NoOnline_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
+	if online >= self.Count {
+		log.ErrorCtx(r.Context(), "TOO MANY REQUEST: %v", page)
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		return r, false
+	}
 	return r, true
 }
 
-func (NoOnline_t) MinistatEnd(r *http.Request, name string, status int, diff time.Duration) {
-	return
+func (*NoOnline_t) MinistatBegin(r *http.Request, page string) {
+
+}
+
+func (*NoOnline_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
+
 }
 
 type Online_t struct {
 	Count int64
 }
 
-func (self *Online_t) MinistatBegin(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
+func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
+	if online >= self.Count {
+		log.ErrorCtx(r.Context(), "TOO MANY REQUEST: %v", page)
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		return r, false
+	}
+	return r, true
+}
 
+func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(1))
 	}
-
-	if online >= self.Count {
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return r, false
-	}
-
-	return r, true
 }
 
 func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err == nil {
 		stats.Record(ctx, pagePending.M(-1))
-	}
-
-	switch status {
-	case 401, 404:
-		page = "/page_" + strconv.FormatInt(int64(status), 10)
 	}
 
 	mutator := []tag.Mutator{
@@ -119,6 +152,21 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 	}
 	ctx, err = tag.New(r.Context(), mutator...)
 	if err == nil {
-		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6))
+		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
 	}
+}
+
+func Evict(f func(f func(page string, value *Counter_t) bool)) {
+	f(
+		func(page string, value *Counter_t) bool {
+			mutator := []tag.Mutator{
+				tag.Upsert(TagPageName, page),
+			}
+			ctx, err := tag.New(context.Background(), mutator...)
+			if err == nil {
+				stats.Record(ctx, pageLatencySum.M(-int64(value.DurationSum)), pageLatencyCount.M(-int64(value.DurationNum)))
+			}
+			return true
+		},
+	)
 }

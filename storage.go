@@ -33,18 +33,20 @@ func (self *Counter_t) CounterAdd(a int64) int64 {
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
+type Evict_t = unique.Evict[*Counter_t]
+
 func Drop(f func(f func(key string, value *Counter_t) bool)) {}
 
 type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
 	truncate      time.Duration
-	evict         unique.Evict[*Counter_t]
+	evict         Evict_t
 	limit_backlog int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict unique.Evict[*Counter_t]) (self *Storage_t) {
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict Evict_t) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
@@ -55,9 +57,9 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evic
 	return
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, online int64, ref int64) {
 	self.mx.Lock()
-	it, _ := self.timeline.CreateBack(
+	it, ok := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
 		func() *unique.Often_t[*Counter_t] {
 			return unique.NewOften(self.limit_items, self.evict)
@@ -69,10 +71,14 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
+	if ok && self.timeline.Size() > 1 {
+		self.evict(self.timeline.Back().Prev().Value.Range)
+	}
 	if self.timeline.Size() > self.limit_backlog {
-		self.evict(self.timeline.Front().Value.Range)
 		self.timeline.Remove(self.timeline.Front().Key)
 	}
+	online = counter.Online
+	ref = counter.count
 	self.mx.Unlock()
 	return
 }
@@ -100,7 +106,8 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 }
 
 func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Duration, processed int, status_code int) {
-	self.MetricEnd(self.MetricBegin(name, start), diff, processed, status_code)
+	c, _, _ := self.MetricBegin(name, start)
+	self.MetricEnd(c, diff, processed, status_code)
 }
 
 func (self *Storage_t) MetricListTs(f func(time.Time) bool) {
