@@ -113,7 +113,11 @@ func (*NoOnline_t) MinistatBegin(r *http.Request, page string) {
 
 }
 
-func (*NoOnline_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
+func (*NoOnline_t) MinistatEnd(r *http.Request, page string) {
+
+}
+
+func (*NoOnline_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
 
 }
 
@@ -136,11 +140,20 @@ func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	if err != nil {
 		log.Error("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pagePending.M(1))
+		stats.Record(ctx, pagePending.M(1), pageRequest.M(1))
 	}
 }
 
-func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
+func (self *Online_t) MinistatEnd(r *http.Request, page string) {
+	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
+	if err != nil {
+		log.Error("MINISTAT: %v", err)
+	} else {
+		stats.Record(ctx, pagePending.M(-1))
+	}
+}
+
+func (self *Online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
 	mutator := []tag.Mutator{
 		tag.Upsert(TagPageName, page),
 	}
@@ -151,21 +164,16 @@ func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff
 	if err != nil {
 		log.Error("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pagePending.M(-1), pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
+		stats.Record(ctx, pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
 	}
 }
 
-func Evict(f func(f func(page string, value *Counter_t) bool)) {
-	f(
-		func(page string, value *Counter_t) bool {
-			mutator := []tag.Mutator{
-				tag.Upsert(TagPageName, page),
-			}
-			ctx, err := tag.New(context.Background(), mutator...)
-			if err == nil {
-				stats.Record(ctx, pageLatencySum.M(-int64(value.DurationSum)), pageLatencyCount.M(-int64(value.DurationNum)))
-			}
-			return true
-		},
-	)
+func Evict(page string, value *Counter_t) {
+	mutator := []tag.Mutator{
+		tag.Upsert(TagPageName, page),
+	}
+	ctx, err := tag.New(context.Background(), mutator...)
+	if err == nil {
+		stats.Record(ctx, pageLatencySum.M(-int64(value.DurationSum)), pageLatencyCount.M(-int64(value.DurationNum)))
+	}
 }

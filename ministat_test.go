@@ -18,14 +18,9 @@ type EvictTest_t struct {
 	str string
 }
 
-func (self *EvictTest_t) Evict(f func(f func(key string, value *Counter_t) bool)) {
-	f(
-		func(key string, value *Counter_t) bool {
-			self.t.Logf("EVICT: %v", key)
-			assert.Assert(self.t, strings.Contains(key, self.str), key)
-			return true
-		},
-	)
+func (self *EvictTest_t) Evict(key string, value *Counter_t) {
+	self.t.Logf("EVICT: %v", key)
+	assert.Assert(self.t, strings.Contains(key, self.str), key)
 }
 
 func Test_Evict01(t *testing.T) {

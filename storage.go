@@ -31,11 +31,15 @@ func (self *Counter_t) CounterAdd(a int64) int64 {
 	return self.count
 }
 
+func (self *Counter_t) CounterSet(a int64)  {
+	self.count = a
+}
+
 type Less_t = cache.Less_t[string, *Counter_t]
 
-type Evict_t = unique.Evict[*Counter_t]
+type Evict_t = unique.Evict_t[*Counter_t]
 
-func Drop(f func(f func(key string, value *Counter_t) bool)) {}
+func Drop(key string, value *Counter_t) {}
 
 type Storage_t struct {
 	mx            sync.Mutex
@@ -72,7 +76,13 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 		counter.OnlineMax = counter.Online
 	}
 	if ok && self.timeline.Size() > 1 {
-		self.evict(self.timeline.Back().Prev().Value.Range)
+		self.timeline.Back().Prev().Value.Range(
+			func(key string, value *Counter_t) bool {
+				self.evict(key, value)
+				value.CounterSet(0)
+				return true
+			},
+		)
 	}
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Remove(self.timeline.Front().Key)
@@ -83,7 +93,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) (ref int64) {
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
@@ -101,6 +111,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	default:
 		counter.Status000++
 	}
+	ref = counter.count
 	self.mx.Unlock()
 	return
 }
