@@ -133,26 +133,25 @@ func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, pa
 
 func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
-	if err == nil {
+	if err != nil {
+		log.Error("MINISTAT: %v", err)
+	} else {
 		stats.Record(ctx, pagePending.M(1))
 	}
 }
 
 func (self *Online_t) MinistatEnd(r *http.Request, page string, status int, diff time.Duration) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
-	if err == nil {
-		stats.Record(ctx, pagePending.M(-1))
-	}
-
 	mutator := []tag.Mutator{
 		tag.Upsert(TagPageName, page),
 	}
 	if v := log.ContextGet(r.Context()); v != nil {
 		mutator = append(mutator, tag.Upsert(TagPageError, strings.Join(v.Values(), ",")))
 	}
-	ctx, err = tag.New(r.Context(), mutator...)
-	if err == nil {
-		stats.Record(ctx, pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
+	ctx, err := tag.New(r.Context(), mutator...)
+	if err != nil {
+		log.Error("MINISTAT: %v", err)
+	} else {
+		stats.Record(ctx, pagePending.M(-1), pageRequest.M(1), pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
 	}
 }
 
