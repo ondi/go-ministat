@@ -140,7 +140,7 @@ func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pagePending.M(1), pageRequest.M(1))
+		stats.Record(ctx, pagePending.M(1), pageRequest.M(1), pageLatencyCount.M(1))
 	}
 }
 
@@ -164,16 +164,15 @@ func (self *Online_t) MinistatDuration(r *http.Request, page string, status int,
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
+		stats.Record(ctx, pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)))
 	}
 }
 
 func Evict(page string, value *Counter_t) {
-	mutator := []tag.Mutator{
-		tag.Upsert(TagPageName, page),
-	}
-	ctx, err := tag.New(context.Background(), mutator...)
-	if err == nil {
+	ctx, err := tag.New(context.Background(), tag.Upsert(TagPageName, page))
+	if err != nil {
+		log.Warn("MINISTAT: %v", err)
+	} else {
 		stats.Record(ctx, pageLatencySum.M(-int64(value.DurationSum)), pageLatencyCount.M(-int64(value.DurationNum)))
 	}
 }
