@@ -102,7 +102,7 @@ type NoOnline_t struct {
 
 func (self *NoOnline_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	if online >= self.Count {
-		log.ErrorCtx(r.Context(), "TOO MANY REQUEST: %v", page)
+		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return r, false
 	}
@@ -128,7 +128,7 @@ type Online_t struct {
 func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
 	if online >= self.Count {
-		log.ErrorCtx(r.Context(), "TOO MANY REQUEST: %v", page)
+		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return r, false
 	}
@@ -138,7 +138,7 @@ func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, pa
 func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err != nil {
-		log.Error("MINISTAT: %v", err)
+		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, pagePending.M(1), pageRequest.M(1))
 	}
@@ -147,7 +147,7 @@ func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 func (self *Online_t) MinistatEnd(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err != nil {
-		log.Error("MINISTAT: %v", err)
+		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, pagePending.M(-1))
 	}
@@ -162,7 +162,7 @@ func (self *Online_t) MinistatDuration(r *http.Request, page string, status int,
 	}
 	ctx, err := tag.New(r.Context(), mutator...)
 	if err != nil {
-		log.Error("MINISTAT: %v", err)
+		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)), pageLatencyCount.M(1))
 	}
