@@ -26,13 +26,12 @@ type Counter_t struct {
 	Status000   int64
 }
 
-func (self *Counter_t) CounterAdd(a int64) int64 {
+func (self *Counter_t) CounterAdd(a int64) {
 	self.count += a
-	return self.count
 }
 
-func (self *Counter_t) CounterSet(a int64)  {
-	self.count = a
+func (self *Counter_t) CounterGet() int64  {
+	return self.count
 }
 
 type Less_t = cache.Less_t[string, *Counter_t]
@@ -79,7 +78,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 		self.timeline.Back().Prev().Value.Range(
 			func(key string, value *Counter_t) bool {
 				self.evict(key, value)
-				value.CounterSet(0)
+				value.CounterAdd(-value.CounterGet())
 				return true
 			},
 		)
