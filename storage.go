@@ -46,16 +46,18 @@ type Storage_t struct {
 	truncate      time.Duration
 	evict         Evict_t
 	limit_backlog int
+	evict_bucket  int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, evict Evict_t) (self *Storage_t) {
+func NewStorage(limit_backlog int, evict_bucket int, limit_items int, truncate time.Duration, evict Evict_t) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		evict:         evict,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
+		evict_bucket:  evict_bucket,
 	}
 	return
 }
@@ -74,14 +76,16 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	if ok && self.timeline.Size() > 1 {
-		self.timeline.Back().Prev().Value.Range(
-			func(key string, value *Counter_t) bool {
-				self.evict(key, value)
-				value.CounterAdd(-value.CounterGet())
-				return true
-			},
-		)
+	if ok && self.timeline.Size() > self.evict_bucket {
+		it2 := self.timeline.Back()
+		for i := 0; i < self.evict_bucket; i++ {
+			it2 = it2.Prev()
+		}
+		it2.Value.Range(func(key string, value *Counter_t) bool {
+			self.evict(key, value)
+			value.CounterAdd(-value.CounterGet())
+			return true
+		})
 	}
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Remove(self.timeline.Front().Key)

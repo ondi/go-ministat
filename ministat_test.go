@@ -14,34 +14,34 @@ import (
 )
 
 type EvictTest_t struct {
-	t   *testing.T
-	str string
+	t     *testing.T
+	check string
 }
 
 func (self *EvictTest_t) Evict(key string, value *Counter_t) {
 	self.t.Logf("EVICT: %v", key)
-	assert.Assert(self.t, strings.Contains(key, self.str), key)
+	assert.Assert(self.t, strings.Contains(key, self.check), key)
 }
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 10, time.Second, (&EvictTest_t{t: t, str: "test1"}).Evict)
+	s := NewStorage(0, 0, 10, time.Second, (&EvictTest_t{t: t, check: "test1"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
-		s.MetricBegin("test1."+strconv.FormatInt(i, 10), ts)
+		s.MetricBegin("test1-"+strconv.FormatInt(i, 10), ts)
 	}
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 10, time.Second, (&EvictTest_t{t: t, str: "test2"}).Evict)
+	s := NewStorage(1, 1, 10, time.Second, (&EvictTest_t{t: t, check: "test2"}).Evict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
-		s.MetricBegin("test2."+strconv.FormatInt(i, 10), ts)
+		s.MetricBegin("test2-"+strconv.FormatInt(i, 10), ts)
 	}
 
 	ts = ts.Add(time.Second)
 	for i := int64(0); i < 10; i++ {
-		s.MetricBegin("test3."+strconv.FormatInt(i, 10), ts)
+		s.MetricBegin("test3-"+strconv.FormatInt(i, 10), ts)
 	}
 }
