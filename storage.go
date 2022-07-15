@@ -70,12 +70,6 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
-	counter.Online++
-	counter.DurationNum++
-	if counter.Online > counter.OnlineMax {
-		counter.OnlineMax = counter.Online
-	}
 	if ok && self.timeline.Size() > self.evict_bucket {
 		it2 := self.timeline.Back()
 		for i := 0; i < self.evict_bucket; i++ {
@@ -89,6 +83,15 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	}
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Remove(self.timeline.Front().Key)
+	}
+	counter, ok = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
+	if !ok && counter.count == 1 {
+		counter.count = 0
+	}
+	counter.Online++
+	counter.DurationNum++
+	if counter.Online > counter.OnlineMax {
+		counter.OnlineMax = counter.Online
 	}
 	online = counter.Online
 	ref = counter.count
