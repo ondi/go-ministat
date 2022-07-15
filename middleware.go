@@ -11,9 +11,10 @@ import (
 
 type Online interface {
 	MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool)
-	MinistatBegin(r *http.Request, page string)
-	MinistatEnd(r *http.Request, page string)
+	MinistatBefore(r *http.Request, page string)
+	MinistatAfter(r *http.Request, page string)
 	MinistatDuration(r *http.Request, page string, status int, diff time.Duration)
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
 }
 
 type Middleware_t struct {
@@ -43,13 +44,13 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r, ok := self.online.MinistatContext(&writer, r, page, online)
 
 	if ref > 0 {
-		self.online.MinistatBegin(r, page)
+		self.online.MinistatBefore(r, page)
 	}
 	if ok {
 		self.next.ServeHTTP(&writer, r)
 	}
 	if ref > 0 {
-		self.online.MinistatEnd(r, page)
+		self.online.MinistatAfter(r, page)
 	}
 
 	diff := time.Since(start)

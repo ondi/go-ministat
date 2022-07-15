@@ -14,17 +14,18 @@ import (
 )
 
 type EvictTest_t struct {
+	Online
 	t     *testing.T
 	check string
 }
 
-func (self *EvictTest_t) Evict(key string, value *Counter_t) {
+func (self *EvictTest_t) MinistatEvict(key string, DurationSum time.Duration, DurationNum time.Duration) {
 	self.t.Logf("EVICT: %v", key)
 	assert.Assert(self.t, strings.Contains(key, self.check), key)
 }
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 0, 10, time.Second, (&EvictTest_t{t: t, check: "test1"}).Evict)
+	s := NewStorage(0, 0, 10, time.Second, &EvictTest_t{t: t, check: "test1"})
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -33,7 +34,7 @@ func Test_Evict01(t *testing.T) {
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 1, 10, time.Second, (&EvictTest_t{t: t, check: "test2"}).Evict)
+	s := NewStorage(1, 1, 10, time.Second, &EvictTest_t{t: t, check: "test2"})
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {

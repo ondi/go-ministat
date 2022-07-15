@@ -36,30 +36,30 @@ func (self *Counter_t) CounterGet() int64  {
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
-type Evict_t = unique.Evict_t[*Counter_t]
-
-func Drop(key string, value *Counter_t) {}
-
 type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
 	truncate      time.Duration
-	evict         Evict_t
+	online        Online
 	limit_backlog int
 	evict_bucket  int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, evict_bucket int, limit_items int, truncate time.Duration, evict Evict_t) (self *Storage_t) {
+func NewStorage(limit_backlog int, evict_bucket int, limit_items int, truncate time.Duration, online Online) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
-		evict:         evict,
+		online:        online,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
 		evict_bucket:  evict_bucket,
 	}
 	return
+}
+
+func (self *Storage_t) evict(key string, value *Counter_t) {
+	self.online.MinistatEvict(key, value.DurationSum, value.DurationNum)
 }
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, online int64, ref int64) {
@@ -70,7 +70,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	counter = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
+	counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
 	counter.Online++
 	counter.DurationNum++
 	if counter.Online > counter.OnlineMax {

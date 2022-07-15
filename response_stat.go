@@ -109,17 +109,13 @@ func (self *NoOnline_t) MinistatContext(w http.ResponseWriter, r *http.Request, 
 	return r, true
 }
 
-func (*NoOnline_t) MinistatBegin(r *http.Request, page string) {
+func (*NoOnline_t) MinistatBefore(r *http.Request, page string) {}
 
-}
+func (*NoOnline_t) MinistatAfter(r *http.Request, page string) {}
 
-func (*NoOnline_t) MinistatEnd(r *http.Request, page string) {
+func (*NoOnline_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
 
-}
-
-func (*NoOnline_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
-
-}
+func (*NoOnline_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
 
 type Online_t struct {
 	Count int64
@@ -135,7 +131,7 @@ func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, pa
 	return r, true
 }
 
-func (self *Online_t) MinistatBegin(r *http.Request, page string) {
+func (self *Online_t) MinistatBefore(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
@@ -144,7 +140,7 @@ func (self *Online_t) MinistatBegin(r *http.Request, page string) {
 	}
 }
 
-func (self *Online_t) MinistatEnd(r *http.Request, page string) {
+func (self *Online_t) MinistatAfter(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
@@ -168,11 +164,11 @@ func (self *Online_t) MinistatDuration(r *http.Request, page string, status int,
 	}
 }
 
-func Evict(page string, value *Counter_t) {
+func (self *Online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(TagPageName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pageLatencySum.M(-int64(value.DurationSum)), pageLatencyCount.M(-int64(value.DurationNum)))
+		stats.Record(ctx, pageLatencySum.M(-int64(DurationSum)), pageLatencyCount.M(-int64(DurationNum)))
 	}
 }
