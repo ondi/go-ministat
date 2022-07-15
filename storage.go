@@ -42,20 +42,17 @@ type Storage_t struct {
 	truncate      time.Duration
 	online        Online
 	limit_backlog int
-	evict_bucket  int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, evict_bucket int, limit_items int, truncate time.Duration, online Online) (self *Storage_t) {
-	self = &Storage_t{
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, online Online) *Storage_t {
+	return &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		online:        online,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
-		evict_bucket:  evict_bucket,
 	}
-	return
 }
 
 func (self *Storage_t) evict(key string, value *Counter_t) {
@@ -64,30 +61,21 @@ func (self *Storage_t) evict(key string, value *Counter_t) {
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, online int64, ref int64) {
 	self.mx.Lock()
-	it, ok := self.timeline.CreateBack(
+	if self.timeline.Size() > self.limit_backlog {
+		self.timeline.Front().Value.Range(func(key string, value *Counter_t) bool {
+			self.evict(key, value)
+			value.CounterAdd(-value.CounterGet())
+			return true
+		})
+		self.timeline.Remove(self.timeline.Front().Key)
+	}
+	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
 		func() *unique.Often_t[*Counter_t] {
 			return unique.NewOften(self.limit_items, self.evict)
 		},
 	)
-	if ok && self.timeline.Size() > self.evict_bucket {
-		it2 := self.timeline.Back()
-		for i := 0; i < self.evict_bucket; i++ {
-			it2 = it2.Prev()
-		}
-		it2.Value.Range(func(key string, value *Counter_t) bool {
-			self.evict(key, value)
-			value.CounterAdd(-value.CounterGet())
-			return true
-		})
-	}
-	if self.timeline.Size() > self.limit_backlog {
-		self.timeline.Remove(self.timeline.Front().Key)
-	}
-	counter, ok = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
-	if !ok && counter.count == 1 {
-		counter.count = 0
-	}
+	counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
 	counter.Online++
 	counter.DurationNum++
 	if counter.Online > counter.OnlineMax {

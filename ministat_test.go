@@ -25,7 +25,7 @@ func (self *EvictTest_t) MinistatEvict(key string, DurationSum time.Duration, Du
 }
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 0, 10, time.Second, &EvictTest_t{t: t, check: "test1"})
+	s := NewStorage(0, 10, time.Second, &EvictTest_t{t: t, check: "test1"})
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -34,7 +34,7 @@ func Test_Evict01(t *testing.T) {
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 1, 10, time.Second, &EvictTest_t{t: t, check: "test2"})
+	s := NewStorage(1, 10, time.Second, &EvictTest_t{t: t, check: "test2"})
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {

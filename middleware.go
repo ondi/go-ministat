@@ -54,9 +54,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
-	ref = self.storage.MetricEnd(counter, diff, 1, writer.status_code)
-
-	if ref > 0 {
+	if self.storage.MetricEnd(counter, diff, 1, writer.status_code) > 0 {
 		self.online.MinistatDuration(r, page, writer.status_code, diff)
 	}
 }
