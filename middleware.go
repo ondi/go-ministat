@@ -39,22 +39,22 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
-	counter, online, ref := self.storage.MetricBegin(page, start)
+	counter, current := self.storage.MetricBegin(page, start)
 
-	r, ok := self.online.MinistatContext(&writer, r, page, online)
+	r, ok := self.online.MinistatContext(&writer, r, page, current.Online)
 
-	if ref > 0 {
+	if current.Ref > 0 {
 		self.online.MinistatBefore(r, page)
 	}
 	if ok {
 		self.next.ServeHTTP(&writer, r)
 	}
-	if ref > 0 {
+	if current.Ref > 0 {
 		self.online.MinistatAfter(r, page)
 	}
 
 	diff := time.Since(start)
-	if self.storage.MetricEnd(counter, diff, 1, writer.status_code) > 0 {
+	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Ref > 0 {
 		self.online.MinistatDuration(r, page, writer.status_code, diff)
 	}
 }

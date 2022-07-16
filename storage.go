@@ -13,7 +13,7 @@ import (
 )
 
 type Counter_t struct {
-	count       int64 // reservoir sampling
+	Ref         int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
 	Processed   int64
@@ -27,11 +27,11 @@ type Counter_t struct {
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
-	self.count += a
+	self.Ref += a
 }
 
 func (self *Counter_t) CounterGet() int64  {
-	return self.count
+	return self.Ref
 }
 
 type Less_t = cache.Less_t[string, *Counter_t]
@@ -56,15 +56,15 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, onli
 }
 
 func (self *Storage_t) evict(key string, value *Counter_t) {
+	value.CounterAdd(-value.CounterGet())
 	self.online.MinistatEvict(key, value.DurationSum, value.DurationNum)
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, online int64, ref int64) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, current Counter_t) {
 	self.mx.Lock()
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Front().Value.Range(func(key string, value *Counter_t) bool {
 			self.evict(key, value)
-			value.CounterAdd(-value.CounterGet())
 			return true
 		})
 		self.timeline.Remove(self.timeline.Front().Key)
@@ -81,13 +81,12 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	online = counter.Online
-	ref = counter.count
+	current = *counter
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) (ref int64) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) (current Counter_t) {
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
@@ -105,13 +104,13 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	default:
 		counter.Status000++
 	}
-	ref = counter.count
+	current = *counter
 	self.mx.Unlock()
 	return
 }
 
 func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Duration, processed int, status_code int) {
-	c, _, _ := self.MetricBegin(name, start)
+	c, _ := self.MetricBegin(name, start)
 	self.MetricEnd(c, diff, processed, status_code)
 }
 
