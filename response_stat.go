@@ -1,8 +1,8 @@
 //
-// RPM = sum(rate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
-// PENDING = sum(http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
-// LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le)) # DEPRECATED
-// LATENCT_AVG = sum(http_latency_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)/sum(http_latency_count{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
+// RPM = sum(rate(http_request_count{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
+// PENDING = sum(http_pending_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
+// LATENCY = histogram_quantile(0.95, sum(rate(http_latency_hist_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le)) # DEPRECATED
+// LATENCT = sum(http_latency_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)/sum(http_latency_num{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
 //
 
 package ministat
@@ -24,53 +24,53 @@ var TagPageName = tag.MustNewKey("page")
 var TagPageError = tag.MustNewKey("error")
 
 var pageRequest = stats.Int64(
-	"http/request/page",
+	"http_request_count",
 	"Number of HTTP requests per page",
 	stats.UnitDimensionless,
 )
 
 var pagePending = stats.Int64(
-	"http/pending/page",
+	"http_pending_sum",
 	"Number of HTTP pending requests per page",
 	stats.UnitDimensionless,
 )
 
 var pageLatencySum = stats.Int64(
-	"http/latency_sum",
+	"http_latency_sum",
 	"End-to-end latency",
 	stats.UnitDimensionless,
 )
 
 var pageLatencyCount = stats.Int64(
-	"http/latency_count",
+	"http_latency_num",
 	"End-to-end latency",
 	stats.UnitDimensionless,
 )
 
 var Views = []*view.View{
 	{
-		Name:        "http/request/page",
+		Name:        "http_request_count",
 		Description: "Count of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName, TagPageError},
 		Measure:     pageRequest,
 		Aggregation: view.Count(),
 	},
 	{
-		Name:        "http/pending/page",
+		Name:        "http_pending_sum",
 		Description: "Count of HTTP pending requests per page",
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     pagePending,
 		Aggregation: view.Sum(),
 	},
 	{
-		Name:        "http/latency_sum",
+		Name:        "http_latency_sum",
 		Description: "Latency of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     pageLatencySum,
 		Aggregation: view.Sum(),
 	},
 	{
-		Name:        "http/latency_count",
+		Name:        "http_latency_num",
 		Description: "Latency of HTTP requests per page",
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     pageLatencyCount,
