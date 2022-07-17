@@ -9,12 +9,8 @@ import (
 	"time"
 )
 
-type Online interface {
-	MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool)
-	MinistatBefore(r *http.Request, page string)
-	MinistatAfter(r *http.Request, page string)
-	MinistatDuration(r *http.Request, page string, status int, diff time.Duration)
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
+func GetPageName(r *http.Request) (res string) {
+	return r.URL.Path
 }
 
 type Middleware_t struct {

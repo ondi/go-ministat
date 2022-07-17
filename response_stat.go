@@ -20,96 +20,103 @@ import (
 	"go.opencensus.io/tag"
 )
 
-var TagPageName = tag.MustNewKey("page")
-var TagPageError = tag.MustNewKey("error")
-
-var pageRequest = stats.Int64(
-	"http_request_count",
-	"Number of HTTP requests per page",
-	stats.UnitDimensionless,
-)
-
-var pagePending = stats.Int64(
-	"http_pending_sum",
-	"Number of HTTP pending requests per page",
-	stats.UnitDimensionless,
-)
-
-var pageLatencySum = stats.Int64(
-	"http_latency_sum",
-	"End-to-end latency",
-	stats.UnitDimensionless,
-)
-
-var pageLatencyCount = stats.Int64(
-	"http_latency_num",
-	"End-to-end latency",
-	stats.UnitDimensionless,
-)
-
-var Views = []*view.View{
-	{
-		Name:        "http_request_count",
-		Description: "Count of HTTP requests per page",
-		TagKeys:     []tag.Key{TagPageName, TagPageError},
-		Measure:     pageRequest,
-		Aggregation: view.Count(),
-	},
-	{
-		Name:        "http_pending_sum",
-		Description: "Count of HTTP pending requests per page",
-		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pagePending,
-		Aggregation: view.Sum(),
-	},
-	{
-		Name:        "http_latency_sum",
-		Description: "Latency of HTTP requests per page",
-		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pageLatencySum,
-		Aggregation: view.Sum(),
-	},
-	{
-		Name:        "http_latency_num",
-		Description: "Latency of HTTP requests per page",
-		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pageLatencyCount,
-		Aggregation: view.Sum(),
-	},
+type Online interface {
+	MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool)
+	MinistatBefore(r *http.Request, page string)
+	MinistatAfter(r *http.Request, page string)
+	MinistatDuration(r *http.Request, page string, status int, diff time.Duration)
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
+	Views() []*view.View
 }
 
-func GetPageName(r *http.Request) (res string) {
-	return r.URL.Path
+type no_online_t struct{}
+
+func NewNoOnline(prefix string, limit int64) (Online, error) {
+	return &no_online_t{}, nil
 }
 
-type NoOnline_t struct {
-	Count int64
-}
-
-func (self *NoOnline_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
-	if online >= self.Count {
-		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return r, false
-	}
+func (self *no_online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	return r, true
 }
 
-func (*NoOnline_t) MinistatBefore(r *http.Request, page string) {}
+func (*no_online_t) MinistatBefore(r *http.Request, page string) {}
 
-func (*NoOnline_t) MinistatAfter(r *http.Request, page string) {}
+func (*no_online_t) MinistatAfter(r *http.Request, page string) {}
 
-func (*NoOnline_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
+func (*no_online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
 
-func (*NoOnline_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
+func (*no_online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
 
-type Online_t struct {
-	Count int64
+func (*no_online_t) Views() []*view.View {
+	return nil
 }
 
-func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
+type online_t struct {
+	limit          int64
+	pageName       tag.Key
+	pageError      tag.Key
+	pageRequest    *stats.Int64Measure
+	pagePending    *stats.Int64Measure
+	pageLatencySum *stats.Int64Measure
+	pageLatencyNum *stats.Int64Measure
+	views          []*view.View
+}
+
+func NewOnline(prefix string, limit int64) (Online, error) {
+	self := &online_t{
+		limit:          limit,
+		pageRequest:    stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
+		pagePending:    stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
+		pageLatencySum: stats.Int64("latency_sum", "latency numerator", stats.UnitDimensionless),
+		pageLatencyNum: stats.Int64("latency_num", "latency denominator", stats.UnitDimensionless),
+	}
+	var err error
+	if self.pageName, err = tag.NewKey("page"); err != nil {
+		return nil, err
+	}
+	if self.pageError, err = tag.NewKey("error"); err != nil {
+		return nil, err
+	}
+	self.views = []*view.View{
+		{
+			Name:        prefix + "request_count",
+			Description: "count of requests",
+			TagKeys:     []tag.Key{self.pageName, self.pageError},
+			Measure:     self.pageRequest,
+			Aggregation: view.Count(),
+		},
+		{
+			Name:        prefix + "pending_sum",
+			Description: "count of pending requests",
+			TagKeys:     []tag.Key{self.pageName},
+			Measure:     self.pagePending,
+			Aggregation: view.Sum(),
+		},
+		{
+			Name:        prefix + "latency_sum",
+			Description: "latency numerator",
+			TagKeys:     []tag.Key{self.pageName},
+			Measure:     self.pageLatencySum,
+			Aggregation: view.Sum(),
+		},
+		{
+			Name:        prefix + "latency_num",
+			Description: "latency denominator",
+			TagKeys:     []tag.Key{self.pageName},
+			Measure:     self.pageLatencyNum,
+			Aggregation: view.Sum(),
+		},
+	}
+	return self, err
+}
+
+func (self *online_t) Views() []*view.View {
+	return self.views
+}
+
+func (self *online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
 	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
-	if online >= self.Count {
+	if online >= self.limit {
 		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return r, false
@@ -117,44 +124,44 @@ func (self *Online_t) MinistatContext(w http.ResponseWriter, r *http.Request, pa
 	return r, true
 }
 
-func (self *Online_t) MinistatBefore(r *http.Request, page string) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
+func (self *online_t) MinistatBefore(r *http.Request, page string) {
+	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pagePending.M(1), pageRequest.M(1), pageLatencyCount.M(1))
+		stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
 	}
 }
 
-func (self *Online_t) MinistatAfter(r *http.Request, page string) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(TagPageName, page))
+func (self *online_t) MinistatAfter(r *http.Request, page string) {
+	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pagePending.M(-1))
+		stats.Record(ctx, self.pagePending.M(-1))
 	}
 }
 
-func (self *Online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
+func (self *online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
 	mutator := []tag.Mutator{
-		tag.Upsert(TagPageName, page),
+		tag.Upsert(self.pageName, page),
 	}
 	if v := log.ContextGet(r.Context()); v != nil {
-		mutator = append(mutator, tag.Upsert(TagPageError, strings.Join(v.Values(), ",")))
+		mutator = append(mutator, tag.Upsert(self.pageError, strings.Join(v.Values(), ",")))
 	}
 	ctx, err := tag.New(r.Context(), mutator...)
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pageLatencySum.M(int64(diff)))
+		stats.Record(ctx, self.pageLatencySum.M(int64(diff)))
 	}
 }
 
-func (self *Online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
-	ctx, err := tag.New(context.Background(), tag.Upsert(TagPageName, page))
+func (self *online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
+	ctx, err := tag.New(context.Background(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pageLatencySum.M(-int64(DurationSum)), pageLatencyCount.M(-int64(DurationNum)))
+		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
 	}
 }
