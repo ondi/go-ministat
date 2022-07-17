@@ -1,7 +1,8 @@
 //
 // RPM = sum(rate(http_request_page{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
-// LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le))
-// PENDING = http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}
+// PENDING = sum(http_pending_page{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
+// LATENCY = histogram_quantile(0.95, sum(rate(http_latency_page_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le)) # DEPRECATED
+// LATENCT_AVG = sum(http_latency_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)/sum(http_latency_count{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
 //
 
 package ministat
@@ -19,6 +20,9 @@ import (
 	"go.opencensus.io/tag"
 )
 
+var TagPageName = tag.MustNewKey("page")
+var TagPageError = tag.MustNewKey("error")
+
 var pageRequest = stats.Int64(
 	"http/request/page",
 	"Number of HTTP requests per page",
@@ -29,12 +33,6 @@ var pagePending = stats.Int64(
 	"http/pending/page",
 	"Number of HTTP pending requests per page",
 	stats.UnitDimensionless,
-)
-
-var pageLatencyDist = stats.Float64(
-	"http/latency/page",
-	"End-to-end latency",
-	stats.UnitMilliseconds,
 )
 
 var pageLatencySum = stats.Int64(
@@ -48,11 +46,6 @@ var pageLatencyCount = stats.Int64(
 	"End-to-end latency",
 	stats.UnitDimensionless,
 )
-
-var TagPageName = tag.MustNewKey("page")
-var TagPageError = tag.MustNewKey("error")
-
-var LatencyDist = view.Distribution(50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000)
 
 var Views = []*view.View{
 	{
@@ -68,13 +61,6 @@ var Views = []*view.View{
 		TagKeys:     []tag.Key{TagPageName},
 		Measure:     pagePending,
 		Aggregation: view.Sum(),
-	},
-	{
-		Name:        "http/latency/page",
-		Description: "Latency of HTTP requests per page",
-		TagKeys:     []tag.Key{TagPageName},
-		Measure:     pageLatencyDist,
-		Aggregation: LatencyDist,
 	},
 	{
 		Name:        "http/latency_sum",
@@ -160,7 +146,7 @@ func (self *Online_t) MinistatDuration(r *http.Request, page string, status int,
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, pageLatencyDist.M(float64(diff)/1e6), pageLatencySum.M(int64(diff)))
+		stats.Record(ctx, pageLatencySum.M(int64(diff)))
 	}
 }
 
