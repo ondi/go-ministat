@@ -109,11 +109,6 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	return
 }
 
-func (self *Storage_t) AddDuration(name string, start time.Time, diff time.Duration, processed int, status_code int) {
-	c, _ := self.MetricBegin(name, start)
-	self.MetricEnd(c, diff, processed, status_code)
-}
-
 func (self *Storage_t) MetricListTs(f func(time.Time) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
