@@ -13,46 +13,35 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ondi/go-log"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
 
-type Online interface {
-	MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool)
+type Views interface {
 	MinistatBefore(r *http.Request, page string)
 	MinistatAfter(r *http.Request, page string)
 	MinistatDuration(r *http.Request, page string, status int, diff time.Duration)
 	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
-	Views() []*view.View
+	List() []*view.View
 }
 
-type no_online_t struct{}
+type no_views_t struct{}
 
-func NewNoOnline(prefix string, limit int64) (Online, error) {
-	return &no_online_t{}, nil
-}
+func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
-func (self *no_online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
-	return r, true
-}
+func (*no_views_t) MinistatBefore(r *http.Request, page string) {}
 
-func (*no_online_t) MinistatBefore(r *http.Request, page string) {}
+func (*no_views_t) MinistatAfter(r *http.Request, page string) {}
 
-func (*no_online_t) MinistatAfter(r *http.Request, page string) {}
+func (*no_views_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
 
-func (*no_online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
+func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
 
-func (*no_online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
+func (*no_views_t) List() []*view.View { return nil }
 
-func (*no_online_t) Views() []*view.View {
-	return nil
-}
-
-type online_t struct {
-	limit          int64
+type views_t struct {
 	pageName       tag.Key
 	pageError      tag.Key
 	pageRequest    *stats.Int64Measure
@@ -62,9 +51,8 @@ type online_t struct {
 	views          []*view.View
 }
 
-func NewOnline(prefix string, limit int64) (Online, error) {
-	self := &online_t{
-		limit:          limit,
+func NewViews(prefix string) (Views, error) {
+	self := &views_t{
 		pageRequest:    stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
 		pagePending:    stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
 		pageLatencySum: stats.Int64("latency_sum", "latency numerator", stats.UnitDimensionless),
@@ -110,21 +98,11 @@ func NewOnline(prefix string, limit int64) (Online, error) {
 	return self, err
 }
 
-func (self *online_t) Views() []*view.View {
+func (self *views_t) List() []*view.View {
 	return self.views
 }
 
-func (self *online_t) MinistatContext(w http.ResponseWriter, r *http.Request, page string, online int64) (*http.Request, bool) {
-	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
-	if online >= self.limit {
-		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-		return r, false
-	}
-	return r, true
-}
-
-func (self *online_t) MinistatBefore(r *http.Request, page string) {
+func (self *views_t) MinistatBefore(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
@@ -133,7 +111,7 @@ func (self *online_t) MinistatBefore(r *http.Request, page string) {
 	}
 }
 
-func (self *online_t) MinistatAfter(r *http.Request, page string) {
+func (self *views_t) MinistatAfter(r *http.Request, page string) {
 	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
@@ -142,7 +120,7 @@ func (self *online_t) MinistatAfter(r *http.Request, page string) {
 	}
 }
 
-func (self *online_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
+func (self *views_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
 	mutator := []tag.Mutator{
 		tag.Upsert(self.pageName, page),
 	}
@@ -157,7 +135,7 @@ func (self *online_t) MinistatDuration(r *http.Request, page string, status int,
 	}
 }
 
-func (self *online_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
+func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v", err)

@@ -7,6 +7,8 @@ package ministat
 import (
 	"net/http"
 	"time"
+
+	"github.com/ondi/go-log"
 )
 
 func GetPageName(r *http.Request) (res string) {
@@ -16,16 +18,39 @@ func GetPageName(r *http.Request) (res string) {
 type Middleware_t struct {
 	storage   *Storage_t
 	next      http.Handler
+	views     Views
 	page_name func(*http.Request) string
-	online    Online
+	limit     int64
 }
 
-func NewMiddleware(storage *Storage_t, next http.Handler, page_name func(*http.Request) string, online Online) (self *Middleware_t) {
+type StatOption func(self *Middleware_t)
+
+func LimitPerPage(limit int64) StatOption {
+	return func(self *Middleware_t) {
+		self.limit = limit
+	}
+}
+
+func PageName(f func(*http.Request) string) StatOption {
+	return func(self *Middleware_t) {
+		self.page_name = f
+	}
+}
+
+func NewMiddleware(storage *Storage_t, next http.Handler, views Views, opts ...StatOption) (self *Middleware_t) {
 	self = &Middleware_t{
-		storage:   storage,
-		next:      next,
-		page_name: page_name,
-		online:    online,
+		storage: storage,
+		next:    next,
+		views:   views,
+	}
+	for _, v := range opts {
+		v(self)
+	}
+	if self.page_name == nil {
+		self.page_name = GetPageName
+	}
+	if self.limit <= 0 {
+		self.limit = 1<<63 - 1
 	}
 	return
 }
@@ -37,20 +62,21 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	counter, current := self.storage.MetricBegin(page, start)
 
-	r, ok := self.online.MinistatContext(&writer, r, page, current.Online)
-
 	if current.Ref > 0 {
-		self.online.MinistatBefore(r, page)
+		self.views.MinistatBefore(r, page)
 	}
-	if ok {
+	if current.Online >= self.limit {
+		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+	} else {
 		self.next.ServeHTTP(&writer, r)
 	}
 	if current.Ref > 0 {
-		self.online.MinistatAfter(r, page)
+		self.views.MinistatAfter(r, page)
 	}
 
 	diff := time.Since(start)
 	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Ref > 0 {
-		self.online.MinistatDuration(r, page, writer.status_code, diff)
+		self.views.MinistatDuration(r, page, writer.status_code, diff)
 	}
 }

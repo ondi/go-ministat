@@ -14,7 +14,7 @@ import (
 )
 
 type EvictTest_t struct {
-	Online
+	Views
 	t     *testing.T
 	check string
 }

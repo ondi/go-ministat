@@ -40,16 +40,16 @@ type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
 	truncate      time.Duration
-	online        Online
+	views         Views
 	limit_backlog int
 	limit_items   int
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, online Online) *Storage_t {
+func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, views Views) *Storage_t {
 	return &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
-		online:        online,
+		views:         views,
 		limit_backlog: limit_backlog,
 		limit_items:   limit_items,
 	}
@@ -57,7 +57,7 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, onli
 
 func (self *Storage_t) evict(key string, value *Counter_t) {
 	value.CounterAdd(-value.CounterGet())
-	self.online.MinistatEvict(key, value.DurationSum, value.DurationNum)
+	self.views.MinistatEvict(key, value.DurationSum, value.DurationNum)
 }
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, current Counter_t) {
