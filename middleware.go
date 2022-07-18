@@ -63,7 +63,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	counter, current := self.storage.MetricBegin(page, start)
 
 	if current.Ref > 0 {
-		self.views.MinistatBefore(r, page)
+		self.views.MinistatBefore(r.Context(), page)
 	}
 	if current.Online >= self.limit {
 		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
@@ -72,11 +72,11 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		self.next.ServeHTTP(&writer, r)
 	}
 	if current.Ref > 0 {
-		self.views.MinistatAfter(r, page)
+		self.views.MinistatAfter(r.Context(), page)
 	}
 
 	diff := time.Since(start)
 	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Ref > 0 {
-		self.views.MinistatDuration(r, page, writer.status_code, diff)
+		self.views.MinistatDuration(r.Context(), page, writer.status_code, diff)
 	}
 }

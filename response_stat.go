@@ -9,7 +9,6 @@ package ministat
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 
@@ -20,9 +19,9 @@ import (
 )
 
 type Views interface {
-	MinistatBefore(r *http.Request, page string)
-	MinistatAfter(r *http.Request, page string)
-	MinistatDuration(r *http.Request, page string, status int, diff time.Duration)
+	MinistatBefore(ctx context.Context, page string)
+	MinistatAfter(ctx context.Context, page string)
+	MinistatDuration(ctx context.Context, page string, status int, diff time.Duration)
 	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
 	List() []*view.View
 }
@@ -31,11 +30,12 @@ type no_views_t struct{}
 
 func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
-func (*no_views_t) MinistatBefore(r *http.Request, page string) {}
+func (*no_views_t) MinistatBefore(ctx context.Context, page string) {}
 
-func (*no_views_t) MinistatAfter(r *http.Request, page string) {}
+func (*no_views_t) MinistatAfter(ctx context.Context, page string) {}
 
-func (*no_views_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {}
+func (*no_views_t) MinistatDuration(ctx context.Context, page string, status int, diff time.Duration) {
+}
 
 func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
 
@@ -102,34 +102,34 @@ func (self *views_t) List() []*view.View {
 	return self.views
 }
 
-func (self *views_t) MinistatBefore(r *http.Request, page string) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
+func (self *views_t) MinistatBefore(ctx context.Context, page string) {
+	ctx, err := tag.New(ctx, tag.Upsert(self.pageName, page))
 	if err != nil {
-		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
+		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
 	}
 }
 
-func (self *views_t) MinistatAfter(r *http.Request, page string) {
-	ctx, err := tag.New(r.Context(), tag.Upsert(self.pageName, page))
+func (self *views_t) MinistatAfter(ctx context.Context, page string) {
+	ctx, err := tag.New(ctx, tag.Upsert(self.pageName, page))
 	if err != nil {
-		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
+		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, self.pagePending.M(-1))
 	}
 }
 
-func (self *views_t) MinistatDuration(r *http.Request, page string, status int, diff time.Duration) {
+func (self *views_t) MinistatDuration(ctx context.Context, page string, status int, diff time.Duration) {
 	mutator := []tag.Mutator{
 		tag.Upsert(self.pageName, page),
 	}
-	if v := log.ContextGet(r.Context()); v != nil {
+	if v := log.ContextGet(ctx); v != nil {
 		mutator = append(mutator, tag.Upsert(self.pageError, strings.Join(v.Values(), ",")))
 	}
-	ctx, err := tag.New(r.Context(), mutator...)
+	ctx, err := tag.New(ctx, mutator...)
 	if err != nil {
-		log.WarnCtx(r.Context(), "MINISTAT: %v", err)
+		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
 		stats.Record(ctx, self.pageLatencySum.M(int64(diff)))
 	}
