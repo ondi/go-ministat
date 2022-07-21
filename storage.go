@@ -86,11 +86,11 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int, status_code int) (current Counter_t) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int64, status_code int) (current Counter_t) {
 	self.mx.Lock()
 	counter.Online--
 	counter.DurationSum += diff
-	counter.Processed += int64(processed)
+	counter.Processed += processed
 	if diff > counter.DurationMax {
 		counter.DurationMax = diff
 	}
