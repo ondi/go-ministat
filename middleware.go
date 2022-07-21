@@ -62,7 +62,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	counter, current := self.storage.MetricBegin(page, start)
 
-	if current.Ref > 0 {
+	if current.Res > 0 {
 		self.views.MinistatBefore(r.Context(), page)
 	}
 	if current.Online >= self.limit {
@@ -71,12 +71,12 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		self.next.ServeHTTP(&writer, r)
 	}
-	if current.Ref > 0 {
+	if current.Res > 0 {
 		self.views.MinistatAfter(r.Context(), page)
 	}
 
 	diff := time.Since(start)
-	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Ref > 0 {
+	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Res > 0 {
 		self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code)
 	}
 }
