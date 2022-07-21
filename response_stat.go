@@ -21,8 +21,8 @@ import (
 type Views interface {
 	MinistatBefore(ctx context.Context, page string)
 	MinistatAfter(ctx context.Context, page string)
-	MinistatDuration(ctx context.Context, page string, status int, diff time.Duration)
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
+	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int)
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64)
 	List() []*view.View
 }
 
@@ -34,10 +34,11 @@ func (*no_views_t) MinistatBefore(ctx context.Context, page string) {}
 
 func (*no_views_t) MinistatAfter(ctx context.Context, page string) {}
 
-func (*no_views_t) MinistatDuration(ctx context.Context, page string, status int, diff time.Duration) {
+func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
 }
 
-func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {}
+func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64) {
+}
 
 func (*no_views_t) List() []*view.View { return nil }
 
@@ -45,6 +46,7 @@ type views_t struct {
 	pageName       tag.Key
 	pageError      tag.Key
 	pageRequest    *stats.Int64Measure
+	pagePayload    *stats.Int64Measure
 	pagePending    *stats.Int64Measure
 	pageLatencySum *stats.Int64Measure
 	pageLatencyNum *stats.Int64Measure
@@ -54,6 +56,7 @@ type views_t struct {
 func NewViews(prefix string) (Views, error) {
 	self := &views_t{
 		pageRequest:    stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
+		pagePayload:    stats.Int64("payload_count", "number of payload processed", stats.UnitDimensionless),
 		pagePending:    stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
 		pageLatencySum: stats.Int64("latency_sum", "latency numerator", stats.UnitDimensionless),
 		pageLatencyNum: stats.Int64("latency_num", "latency denominator", stats.UnitDimensionless),
@@ -68,14 +71,21 @@ func NewViews(prefix string) (Views, error) {
 	self.views = []*view.View{
 		{
 			Name:        prefix + "request_count",
-			Description: "count of requests",
+			Description: "number of requests",
 			TagKeys:     []tag.Key{self.pageName, self.pageError},
 			Measure:     self.pageRequest,
 			Aggregation: view.Count(),
 		},
 		{
+			Name:        prefix + "payload_count",
+			Description: "number of payload processed",
+			TagKeys:     []tag.Key{self.pageName, self.pageError},
+			Measure:     self.pagePayload,
+			Aggregation: view.Count(),
+		},
+		{
 			Name:        prefix + "pending_sum",
-			Description: "count of pending requests",
+			Description: "number of pending requests",
 			TagKeys:     []tag.Key{self.pageName},
 			Measure:     self.pagePending,
 			Aggregation: view.Sum(),
@@ -120,7 +130,7 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) {
 	}
 }
 
-func (self *views_t) MinistatDuration(ctx context.Context, page string, status int, diff time.Duration) {
+func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
 	mutator := []tag.Mutator{
 		tag.Upsert(self.pageName, page),
 	}
@@ -131,15 +141,15 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, status i
 	if err != nil {
 		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, self.pageLatencySum.M(int64(diff)))
+		stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pagePayload.M(processed))
 	}
 }
 
-func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
+func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
+		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)), self.pagePayload.M(-processed))
 	}
 }

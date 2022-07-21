@@ -19,7 +19,7 @@ type EvictTest_t struct {
 	check string
 }
 
-func (self *EvictTest_t) MinistatEvict(key string, DurationSum time.Duration, DurationNum time.Duration) {
+func (self *EvictTest_t) MinistatEvict(key string, DurationSum time.Duration, DurationNum time.Duration, processed int64) {
 	self.t.Logf("EVICT: %v", key)
 	assert.Assert(self.t, strings.Contains(key, self.check), key)
 }
