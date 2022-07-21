@@ -57,7 +57,7 @@ func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, view
 
 func (self *Storage_t) evict(key string, value *Counter_t) {
 	value.CounterAdd(-value.CounterGet())
-	self.views.MinistatEvict(key, value.DurationSum, value.DurationNum, value.Processed)
+	self.views.MinistatEvict(key, value.DurationSum, value.DurationNum)
 }
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, current Counter_t) {

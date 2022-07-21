@@ -22,7 +22,7 @@ type Views interface {
 	MinistatBefore(ctx context.Context, page string)
 	MinistatAfter(ctx context.Context, page string)
 	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int)
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64)
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
 	List() []*view.View
 }
 
@@ -37,7 +37,7 @@ func (*no_views_t) MinistatAfter(ctx context.Context, page string) {}
 func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
 }
 
-func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64) {
+func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
 }
 
 func (*no_views_t) List() []*view.View { return nil }
@@ -145,11 +145,11 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 	}
 }
 
-func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration, processed int64) {
+func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)), self.pagePayload.M(-processed))
+		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
 	}
 }
