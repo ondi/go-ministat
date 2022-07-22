@@ -74,7 +74,7 @@ func NewViews(prefix string) (Views, error) {
 			Description: "number of requests",
 			TagKeys:     []tag.Key{self.pageName, self.pageError},
 			Measure:     self.pageRequest,
-			Aggregation: view.Count(),
+			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "payload_count",
