@@ -20,8 +20,8 @@ import (
 
 type Views interface {
 	MinistatBefore(ctx context.Context, page string)
-	MinistatAfter(ctx context.Context, page string)
-	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int)
+	MinistatAfter(ctx context.Context, page string, processed int64, status int)
+	MinistatDuration(ctx context.Context, page string, diff time.Duration, status int)
 	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
 	List() []*view.View
 }
@@ -32,9 +32,9 @@ func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
 func (*no_views_t) MinistatBefore(ctx context.Context, page string) {}
 
-func (*no_views_t) MinistatAfter(ctx context.Context, page string) {}
+func (*no_views_t) MinistatAfter(ctx context.Context, page string, processed int64, status int) {}
 
-func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
+func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, status int) {
 }
 
 func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
@@ -121,16 +121,16 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) {
 	}
 }
 
-func (self *views_t) MinistatAfter(ctx context.Context, page string) {
+func (self *views_t) MinistatAfter(ctx context.Context, page string, processed int64, status int) {
 	ctx, err := tag.New(ctx, tag.Upsert(self.pageName, page))
 	if err != nil {
 		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, self.pagePending.M(-1))
+		stats.Record(ctx, self.pagePending.M(-1), self.pagePayload.M(processed))
 	}
 }
 
-func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
+func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, status int) {
 	mutator := []tag.Mutator{
 		tag.Upsert(self.pageName, page),
 	}
@@ -141,7 +141,7 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 	if err != nil {
 		log.WarnCtx(ctx, "MINISTAT: %v", err)
 	} else {
-		stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pagePayload.M(processed))
+		stats.Record(ctx, self.pageLatencySum.M(int64(diff)))
 	}
 }
 

@@ -72,11 +72,11 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		self.next.ServeHTTP(&writer, r)
 	}
 	if current.Res > 0 {
-		self.views.MinistatAfter(r.Context(), page)
+		self.views.MinistatAfter(r.Context(), page, 1, writer.status_code)
 	}
 
 	diff := time.Since(start)
 	if self.storage.MetricEnd(counter, diff, 1, writer.status_code).Res > 0 {
-		self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code)
+		self.views.MinistatDuration(r.Context(), page, diff, writer.status_code)
 	}
 }
