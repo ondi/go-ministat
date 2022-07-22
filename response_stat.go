@@ -81,7 +81,7 @@ func NewViews(prefix string) (Views, error) {
 			Description: "number of payload processed",
 			TagKeys:     []tag.Key{self.pageName, self.pageError},
 			Measure:     self.pagePayload,
-			Aggregation: view.Count(),
+			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "pending_sum",
