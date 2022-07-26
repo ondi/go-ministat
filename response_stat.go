@@ -9,6 +9,7 @@ package ministat
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ func (*no_views_t) List() []*view.View { return nil }
 type views_t struct {
 	pageName       tag.Key
 	pageError      tag.Key
+	pageStatus     tag.Key
 	pageRequest    *stats.Int64Measure
 	pagePayload    *stats.Int64Measure
 	pagePending    *stats.Int64Measure
@@ -68,18 +70,21 @@ func NewViews(prefix string) (Views, error) {
 	if self.pageError, err = tag.NewKey("error"); err != nil {
 		return nil, err
 	}
+	if self.pageStatus, err = tag.NewKey("status"); err != nil {
+		return nil, err
+	}
 	self.views = []*view.View{
 		{
 			Name:        prefix + "request_count",
 			Description: "number of requests",
-			TagKeys:     []tag.Key{self.pageName, self.pageError},
+			TagKeys:     []tag.Key{self.pageName},
 			Measure:     self.pageRequest,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "payload_count",
 			Description: "number of payload processed",
-			TagKeys:     []tag.Key{self.pageName, self.pageError},
+			TagKeys:     []tag.Key{self.pageName, self.pageStatus, self.pageError},
 			Measure:     self.pagePayload,
 			Aggregation: view.Sum(),
 		},
@@ -133,6 +138,7 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) {
 func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int) {
 	mutator := []tag.Mutator{
 		tag.Upsert(self.pageName, page),
+		tag.Upsert(self.pageStatus, strconv.FormatInt(int64(status), 10)),
 	}
 	if v := log.ContextGet(ctx); v != nil {
 		mutator = append(mutator, tag.Upsert(self.pageError, strings.Join(v.Values(), ",")))
