@@ -13,7 +13,7 @@ import (
 )
 
 type Counter_t struct {
-	Res         int64 // reservoir sampling
+	Sampling    int64 // reservoir sampling
 	Online      int64
 	OnlineMax   int64
 	Processed   int64
@@ -27,11 +27,11 @@ type Counter_t struct {
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
-	self.Res += a
+	self.Sampling += a
 }
 
 func (self *Counter_t) CounterGet() int64  {
-	return self.Res
+	return self.Sampling
 }
 
 type Less_t = cache.Less_t[string, *Counter_t]
