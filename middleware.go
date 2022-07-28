@@ -54,6 +54,7 @@ func NewMiddleware(storage *Storage_t, next http.Handler, views Views, opts ...S
 		page_name:         GetPageName,
 		online_limit_hard: 1<<63 - 1,
 		online_limit_soft: 1<<63 - 1,
+		online_duration:   1<<63 - 1,
 	}
 	for _, v := range opts {
 		v(self)
