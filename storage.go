@@ -24,6 +24,9 @@ type Counter_t struct {
 	Status400   int64
 	Status500   int64
 	Status000   int64
+	State       int64
+	StateNew    int64
+	StateNewTs  time.Time
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -34,24 +37,54 @@ func (self *Counter_t) CounterGet() int64  {
 	return self.Sampling
 }
 
+func (self *Counter_t) set_state(ts time.Time, duration time.Duration, in int64) {
+	if self.StateNew != in {
+		self.StateNew = in
+		self.StateNewTs = ts
+	}
+	if self.State != in && ts.Sub(self.StateNewTs) >= duration {
+		self.State = in
+	}
+	return
+}
+
 type Less_t = cache.Less_t[string, *Counter_t]
 
 type Storage_t struct {
-	mx            sync.Mutex
-	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
-	truncate      time.Duration
-	views         Views
-	limit_backlog int
-	limit_items   int
+	mx             sync.Mutex
+	timeline       *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
+	truncate       time.Duration
+	views          Views
+	limit_backlog  int
+	limit_items    int
+	state_limit    int64
+	state_duration time.Duration
 }
 
-func NewStorage(limit_backlog int, limit_items int, truncate time.Duration, views Views) *Storage_t {
+type StorageOptions func(self *Storage_t)
+
+func NewStorage(truncate time.Duration, views Views, opts ...StorageOptions) *Storage_t {
 	return &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		views:         views,
-		limit_backlog: limit_backlog,
-		limit_items:   limit_items,
+		limit_backlog: 5,
+		limit_items:   128,
+		state_limit:   1 << 63 - 1,
+	}
+}
+
+func StorageBacklog(backlog int, items int) StorageOptions {
+	return func(self *Storage_t) {
+		self.limit_backlog = backlog
+		self.limit_items = items
+	}
+}
+
+func StorageOnlineLimit(limit int64, duration time.Duration) StorageOptions {
+	return func(self *Storage_t) {
+		self.state_limit = limit
+		self.state_duration = duration
 	}
 }
 
@@ -80,6 +113,11 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	counter.DurationNum++
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
+	}
+	if counter.Online >= self.state_limit {
+		counter.set_state(start, self.state_duration, 2)
+	} else {
+		counter.set_state(start, self.state_duration, 1)
 	}
 	current = *counter
 	self.mx.Unlock()
