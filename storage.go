@@ -54,7 +54,7 @@ type Storage_t struct {
 	mx             sync.Mutex
 	timeline       *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
 	truncate       time.Duration
-	views          Views
+	evict          Evict
 	limit_backlog  int
 	limit_items    int
 	state_limit    int64
@@ -63,11 +63,11 @@ type Storage_t struct {
 
 type StorageOptions func(self *Storage_t)
 
-func NewStorage(backlog int, items int, truncate time.Duration, views Views, opts ...StorageOptions) *Storage_t {
+func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, opts ...StorageOptions) *Storage_t {
 	return &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
-		views:         views,
+		evict:         evict,
 		limit_backlog: backlog,
 		limit_items:   items,
 		state_limit:   1 << 63 - 1,
@@ -81,16 +81,16 @@ func StorageOnlineLimit(limit int64, duration time.Duration) StorageOptions {
 	}
 }
 
-func (self *Storage_t) evict(key string, value *Counter_t) {
+func (self *Storage_t) evict_page(page string, value *Counter_t) {
 	value.CounterAdd(-value.CounterGet())
-	self.views.MinistatEvict(key, value.DurationSum, value.DurationNum)
+	self.evict.MinistatEvict(page, value.DurationSum, value.DurationNum)
 }
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, current Counter_t) {
 	self.mx.Lock()
 	if self.timeline.Size() > self.limit_backlog {
-		self.timeline.Front().Value.Range(func(key string, value *Counter_t) bool {
-			self.evict(key, value)
+		self.timeline.Front().Value.Range(func(page string, value *Counter_t) bool {
+			self.evict_page(page, value)
 			return true
 		})
 		self.timeline.Remove(self.timeline.Front().Key)
@@ -98,7 +98,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
 		func() *unique.Often_t[*Counter_t] {
-			return unique.NewOften(self.limit_items, self.evict)
+			return unique.NewOften(self.limit_items, self.evict_page)
 		},
 	)
 	counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })

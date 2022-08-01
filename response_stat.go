@@ -19,11 +19,15 @@ import (
 	"go.opencensus.io/tag"
 )
 
+type Evict interface {
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
+}
+
 type Views interface {
+	Evict
 	MinistatBefore(ctx context.Context, page string)
 	MinistatAfter(ctx context.Context, page string)
 	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int)
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
 	List() []*view.View
 }
 
