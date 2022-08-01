@@ -53,7 +53,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.Sampling > 0 {
 		self.views.MinistatBefore(r.Context(), page)
 	}
-	if c.State == 2 {
+	if c.State == 1 {
 		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v %v", c.Online, page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 	} else {

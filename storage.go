@@ -63,21 +63,14 @@ type Storage_t struct {
 
 type StorageOptions func(self *Storage_t)
 
-func NewStorage(truncate time.Duration, views Views, opts ...StorageOptions) *Storage_t {
+func NewStorage(backlog int, items int, truncate time.Duration, views Views, opts ...StorageOptions) *Storage_t {
 	return &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		views:         views,
-		limit_backlog: 5,
-		limit_items:   128,
+		limit_backlog: backlog,
+		limit_items:   items,
 		state_limit:   1 << 63 - 1,
-	}
-}
-
-func StorageBacklog(backlog int, items int) StorageOptions {
-	return func(self *Storage_t) {
-		self.limit_backlog = backlog
-		self.limit_items = items
 	}
 }
 
@@ -115,9 +108,9 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 		counter.OnlineMax = counter.Online
 	}
 	if counter.Online >= self.state_limit {
-		counter.set_state(start, self.state_duration, 2)
-	} else {
 		counter.set_state(start, self.state_duration, 1)
+	} else {
+		counter.set_state(start, self.state_duration, 0)
 	}
 	current = *counter
 	self.mx.Unlock()
