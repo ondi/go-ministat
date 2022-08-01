@@ -63,8 +63,15 @@ type Storage_t struct {
 
 type StorageOptions func(self *Storage_t)
 
-func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, opts ...StorageOptions) *Storage_t {
-	return &Storage_t{
+func StorageOnlineLimit(limit int64, duration time.Duration) StorageOptions {
+	return func(self *Storage_t) {
+		self.state_limit = limit
+		self.state_duration = duration
+	}
+}
+
+func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, opts ...StorageOptions) (self *Storage_t) {
+	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		evict:         evict,
@@ -72,13 +79,10 @@ func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, opt
 		limit_items:   items,
 		state_limit:   1 << 63 - 1,
 	}
-}
-
-func StorageOnlineLimit(limit int64, duration time.Duration) StorageOptions {
-	return func(self *Storage_t) {
-		self.state_limit = limit
-		self.state_duration = duration
+	for _, v := range opts {
+		v(self)
 	}
+	return
 }
 
 func (self *Storage_t) evict_page(page string, value *Counter_t) {
