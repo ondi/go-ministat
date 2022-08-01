@@ -6,6 +6,7 @@ package ministat
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ondi/go-log"
@@ -16,49 +17,66 @@ func GetPageName(r *http.Request) (res string) {
 }
 
 type Middleware_t struct {
-	storage           *Storage_t
-	next              http.Handler
-	views             Views
-	page_name         func(*http.Request) string
-	online_limit_hard int64
-	online_limit_soft int64
-	online_duration   time.Duration
+	storage         *Storage_t
+	next            http.Handler
+	views           Views
+	page_name       func(*http.Request) string
+	online_mx       sync.Mutex
+	online_ts       time.Time
+	online_state    int64
+	online_limit    int64
+	online_duration time.Duration
 }
 
-type StatOption func(self *Middleware_t)
+type Options func(self *Middleware_t)
 
-func OnlineLimit(hard int64) StatOption {
+func OnlineLimit(limit int64, duration time.Duration) Options {
 	return func(self *Middleware_t) {
-		self.online_limit_hard = hard
-	}
-}
-
-func OnlineDuration(soft int64, duration time.Duration) StatOption {
-	return func(self *Middleware_t) {
-		self.online_limit_soft = soft
+		self.online_limit = limit
 		self.online_duration = duration
 	}
 }
 
-func PageName(f func(*http.Request) string) StatOption {
+func PageName(f func(*http.Request) string) Options {
 	return func(self *Middleware_t) {
 		self.page_name = f
 	}
 }
 
-func NewMiddleware(storage *Storage_t, next http.Handler, views Views, opts ...StatOption) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, next http.Handler, views Views, opts ...Options) (self *Middleware_t) {
 	self = &Middleware_t{
-		storage:           storage,
-		next:              next,
-		views:             views,
-		page_name:         GetPageName,
-		online_limit_hard: 1<<63 - 1,
-		online_limit_soft: 1<<63 - 1,
-		online_duration:   1<<63 - 1,
+		storage:      storage,
+		next:         next,
+		views:        views,
+		page_name:    GetPageName,
+		online_limit: 1<<63 - 1,
+		online_state: 1,
 	}
 	for _, v := range opts {
 		v(self)
 	}
+	return
+}
+
+func (self *Middleware_t) CheckState(ts time.Time, online int64) (state int64, diff time.Duration) {
+	self.online_mx.Lock()
+	if online >= self.online_limit {
+		if self.online_state == 2 {
+			diff = ts.Sub(self.online_ts)
+		} else {
+			self.online_state = 2
+			self.online_ts = ts
+		}
+	} else {
+		if self.online_state == 1 {
+			diff = ts.Sub(self.online_ts)
+		} else {
+			self.online_state = 1
+			self.online_ts = ts
+		}
+	}
+	state = self.online_state
+	self.online_mx.Unlock()
 	return
 }
 
@@ -72,7 +90,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.Sampling > 0 {
 		self.views.MinistatBefore(r.Context(), page)
 	}
-	if c.Online >= self.online_limit_hard || c.Online >= self.online_limit_soft && c.DurationSum/c.DurationNum >= self.online_duration {
+	if state, duration := self.CheckState(start, c.Online); duration < self.online_duration || state == 2 {
 		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 	} else {
