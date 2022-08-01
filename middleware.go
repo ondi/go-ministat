@@ -71,7 +71,7 @@ func (self *Middleware_t) __set_state(ts time.Time, state int64) int64 {
 	return self.state_prev
 }
 
-func (self *Middleware_t) CheckState(ts time.Time, online int64) (state int64) {
+func (self *Middleware_t) check_state(ts time.Time, online int64) (state int64) {
 	self.state_mx.Lock()
 	if online >= self.state_limit {
 		state = self.__set_state(ts, 2)
@@ -92,7 +92,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if c.Sampling > 0 {
 		self.views.MinistatBefore(r.Context(), page)
 	}
-	if self.CheckState(start, c.Online) == 2 {
+	if self.check_state(start, c.Online) == 2 {
 		log.WarnCtx(r.Context(), "TOO MANY REQUESTS: %v", page)
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 	} else {
