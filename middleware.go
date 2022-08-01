@@ -61,13 +61,15 @@ func NewMiddleware(storage *Storage_t, next http.Handler, views Views, opts ...O
 }
 
 func (self *Middleware_t) __set_state(ts time.Time, state int64) int64 {
-	if self.state_next == state {
-		if ts.Sub(self.state_ts) > self.state_duration {
-			self.state_prev = state
+	if self.state_prev != state {
+		if self.state_next == state {
+			if ts.Sub(self.state_ts) > self.state_duration {
+				self.state_prev = state
+			}
+		} else {
+			self.state_next = state
+			self.state_ts = ts
 		}
-	} else {
-		self.state_next = state
-		self.state_ts = ts
 	}
 	return self.state_prev
 }
