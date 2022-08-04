@@ -25,8 +25,9 @@ type Counter_t struct {
 	Status500   int64
 	Status000   int64
 	State       int64
-	StateNew    int64
-	StateNewTs  time.Time
+	StateTs     time.Time
+	StateNext   int64
+	StateNextTs time.Time
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -38,14 +39,14 @@ func (self *Counter_t) CounterGet() int64  {
 }
 
 func (self *Counter_t) set_state(ts time.Time, duration time.Duration, in int64) {
-	if self.StateNew != in {
-		self.StateNew = in
-		self.StateNewTs = ts
+	if self.StateNext != in {
+		self.StateNext = in
+		self.StateNextTs = ts
 	}
-	if self.State != in && ts.Sub(self.StateNewTs) >= duration {
+	if self.State != in && ts.Sub(self.StateNextTs) >= duration {
 		self.State = in
+		self.StateTs = ts
 	}
-	return
 }
 
 type Less_t = cache.Less_t[string, *Counter_t]
