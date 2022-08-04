@@ -23,7 +23,6 @@ type Counter_t struct {
 	Status200   int64
 	Status400   int64
 	Status500   int64
-	Status000   int64
 	State       int64
 	StateTs     time.Time
 	StateNext   int64
@@ -131,14 +130,12 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 		counter.DurationMax = diff
 	}
 	switch {
-	case status_code >= 200 && status_code < 300:
+	case status_code < 300:
 		counter.Status200++
 	case status_code >= 400 && status_code < 500:
 		counter.Status400++
 	case status_code >= 500:
 		counter.Status500++
-	default:
-		counter.Status000++
 	}
 	current = *counter
 	self.mx.Unlock()
