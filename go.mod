@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/google/uuid v1.3.0
 	github.com/ondi/go-cache v0.0.0-20220706043832-a192bbb22b21
-	github.com/ondi/go-log v0.0.0-20220804104055-408a45d259ee
+	github.com/ondi/go-log v0.0.0-20220804125716-975a31ef3be9
 	github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6
 	github.com/ondi/go-unique v0.0.0-20220715141104-18afc24c6e3f
 	go.opencensus.io v0.23.0
