@@ -155,7 +155,7 @@ func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, Durat
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.tagName, page))
 	if err != nil {
 		log.Warn("MINISTAT: %v %q", err, page)
-	} else {
-		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
+		return
 	}
+	stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
 }
