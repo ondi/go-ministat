@@ -6,6 +6,7 @@ package ministat
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ondi/go-log"
@@ -13,6 +14,18 @@ import (
 
 func GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
+}
+
+func TrimValue(s string, out *strings.Builder) *strings.Builder {
+	if len(s) > 255 {
+		s = s[:255]
+	}
+	for _, r := range s {
+		if r >= 0x20 && r <= 0x7e {
+			out.WriteRune(r)
+		}
+	}
+	return out
 }
 
 type Middleware_t struct {
@@ -64,7 +77,11 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
+	var sb strings.Builder
+	if v := log.ContextGet(r.Context()); v != nil {
+		TrimValue(strings.Join(v.Values(), ","), &sb)
+	}
 	if self.storage.MetricEnd(p, diff, 1, writer.status_code).Sampling > 0 {
-		self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code)
+		self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code, sb.String())
 	}
 }
