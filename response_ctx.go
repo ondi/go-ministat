@@ -16,6 +16,6 @@ type LogCtx_t struct {
 }
 
 func (self *LogCtx_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String())))
+	r = r.WithContext(log.ContextSet(r.Context(), log.ContextNew(uuid.New().String(), "ERROR")))
 	self.Handler.ServeHTTP(w, r)
 }
