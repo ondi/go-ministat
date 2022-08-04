@@ -124,7 +124,7 @@ func (self *views_t) List() []*view.View {
 func (self *views_t) MinistatBefore(ctx context.Context, page string) {
 	ctx, err := tag.New(ctx, tag.Upsert(self.pageName, page))
 	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %v", err, page)
+		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
 	} else {
 		stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
 	}
@@ -133,7 +133,7 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) {
 func (self *views_t) MinistatAfter(ctx context.Context, page string) {
 	ctx, err := tag.New(ctx, tag.Upsert(self.pageName, page))
 	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %v", err, page)
+		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
 	} else {
 		stats.Record(ctx, self.pagePending.M(-1))
 	}
@@ -149,7 +149,7 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 	}
 	ctx, err := tag.New(ctx, mutator...)
 	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %v", err, page)
+		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
 	} else {
 		stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pagePayload.M(processed))
 	}
@@ -158,7 +158,7 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.pageName, page))
 	if err != nil {
-		log.Warn("MINISTAT: %v %v", err, page)
+		log.Warn("MINISTAT: %v %q", err, page)
 	} else {
 		stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
 	}
