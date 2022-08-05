@@ -130,7 +130,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 		counter.DurationMax = diff
 	}
 	switch {
-	case status_code < 300:
+	case status_code < 400:
 		counter.Status200++
 	case status_code >= 400 && status_code < 500:
 		counter.Status400++
