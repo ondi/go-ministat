@@ -12,21 +12,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ondi/go-log"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
 
 type Evict interface {
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration)
+	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error)
 }
 
 type Views interface {
 	Evict
-	MinistatBefore(ctx context.Context, page string)
-	MinistatAfter(ctx context.Context, page string)
-	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string)
+	MinistatBefore(ctx context.Context, page string) (err error)
+	MinistatAfter(ctx context.Context, page string) (err error)
+	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) (err error)
 	List() []*view.View
 }
 
@@ -34,14 +33,20 @@ type no_views_t struct{}
 
 func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
-func (*no_views_t) MinistatBefore(ctx context.Context, page string) {}
-
-func (*no_views_t) MinistatAfter(ctx context.Context, page string) {}
-
-func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) {
+func (*no_views_t) MinistatBefore(ctx context.Context, page string) (err error) {
+	return
 }
 
-func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
+func (*no_views_t) MinistatAfter(ctx context.Context, page string) (err error) {
+	return
+}
+
+func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) (err error) {
+	return
+}
+
+func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error) {
+	return
 }
 
 func (*no_views_t) List() []*view.View { return nil }
@@ -120,42 +125,40 @@ func (self *views_t) List() []*view.View {
 	return self.views
 }
 
-func (self *views_t) MinistatBefore(ctx context.Context, page string) {
-	ctx, err := tag.New(ctx, tag.Upsert(self.tagName, page))
-	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
+func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error) {
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, page)); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
+	return
 }
 
-func (self *views_t) MinistatAfter(ctx context.Context, page string) {
-	ctx, err := tag.New(ctx, tag.Upsert(self.tagName, page))
-	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
+func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error) {
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, page)); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(-1))
+	return
 }
 
-func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) {
-	ctx, err := tag.New(ctx,
+func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) (err error) {
+	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagName, page),
 		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
 		tag.Upsert(self.tagError, errors),
 	)
 	if err != nil {
-		log.WarnCtx(ctx, "MINISTAT: %v %q", err, page)
 		return
 	}
 	stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pagePayload.M(processed))
+	return
 }
 
-func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) {
+func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error) {
 	ctx, err := tag.New(context.Background(), tag.Upsert(self.tagName, page))
 	if err != nil {
-		log.Warn("MINISTAT: %v %q", err, page)
 		return
 	}
 	stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
+	return
 }
