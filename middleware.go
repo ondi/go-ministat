@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+var TooMany http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+}
+
 func GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
@@ -25,10 +29,6 @@ func TrimValue(s string, out *strings.Builder) *strings.Builder {
 		}
 	}
 	return out
-}
-
-func TooMany(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
 func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
