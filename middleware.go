@@ -11,7 +11,26 @@ import (
 	"time"
 )
 
-var TooMany http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+type TooMany_t struct {
+	log  ErrLog_t
+	ts   time.Time
+	diff time.Duration
+}
+
+func TooManyNew(log ErrLog_t, diff time.Duration) http.Handler {
+	self := &TooMany_t{
+		log:  log,
+		diff: diff,
+	}
+	return self
+}
+
+func (self *TooMany_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ts := time.Now()
+	if ts.Sub(self.ts) > self.diff {
+		self.ts = ts
+		self.log(r.Context(), "TOO MANY REQUESTS: %q", r.URL.Path)
+	}
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
@@ -34,6 +53,8 @@ func TrimValue(s string, out *strings.Builder) *strings.Builder {
 func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
 	return sb
 }
+
+func NoLog(ctx context.Context, format string, args ...interface{}) {}
 
 type Middleware_t struct {
 	storage   *Storage_t
