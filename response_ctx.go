@@ -18,7 +18,7 @@ type log_ctx_t struct {
 	SetCtx  SetCtx_t
 }
 
-func LogCtxNew(next http.Handler, set SetCtx_t) http.Handler {
+func NewLogCtx(next http.Handler, set SetCtx_t) http.Handler {
 	self := &log_ctx_t{
 		Handler: next,
 		SetCtx:  set,
