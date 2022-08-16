@@ -11,21 +11,21 @@ import (
 	"time"
 )
 
-type TooMany_t struct {
-	log  ErrLog_t
+type _429_t struct {
+	log  LogCtx_t
 	ts   time.Time
 	diff time.Duration
 }
 
-func TooManyNew(log ErrLog_t, diff time.Duration) http.Handler {
-	self := &TooMany_t{
+func New429(log LogCtx_t, diff time.Duration) http.Handler {
+	self := &_429_t{
 		log:  log,
 		diff: diff,
 	}
 	return self
 }
 
-func (self *TooMany_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now()
 	if ts.Sub(self.ts) > self.diff {
 		self.ts = ts
@@ -60,8 +60,8 @@ type Middleware_t struct {
 	storage   *Storage_t
 	ok        http.Handler
 	err       http.Handler
-	errors    ErrGet_t
-	log       ErrLog_t
+	errors    GetErr_t
+	log       LogCtx_t
 	views     Views
 	page_name func(*http.Request) string
 }
@@ -74,7 +74,7 @@ func MiddlewarePageName(f func(*http.Request) string) MiddlewareOptions {
 	}
 }
 
-func NewMiddleware(storage *Storage_t, ok http.Handler, err http.Handler, errors ErrGet_t, log ErrLog_t, views Views, opts ...MiddlewareOptions) (self *Middleware_t) {
+func NewMiddleware(storage *Storage_t, ok http.Handler, err http.Handler, errors GetErr_t, log LogCtx_t, views Views, opts ...MiddlewareOptions) (self *Middleware_t) {
 	self = &Middleware_t{
 		storage:   storage,
 		ok:        ok,

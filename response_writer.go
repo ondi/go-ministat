@@ -16,8 +16,8 @@ import (
 	"github.com/ondi/go-tst"
 )
 
-type ErrLog_t func(ctx context.Context, format string, args ...interface{})
-type ErrGet_t func(ctx context.Context, sb *strings.Builder) *strings.Builder
+type LogCtx_t func(ctx context.Context, format string, args ...interface{})
+type GetErr_t func(ctx context.Context, sb *strings.Builder) *strings.Builder
 
 type ResponseWriter_t struct {
 	http.ResponseWriter
@@ -60,12 +60,12 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 
 type ResponseLogger_t struct {
 	next    http.Handler
-	log     ErrLog_t
-	errors  ErrGet_t
+	log     LogCtx_t
+	errors  GetErr_t
 	exclude *tst.Tree1_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log ErrLog_t, errors ErrGet_t, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:    next,
 		log:     log,
