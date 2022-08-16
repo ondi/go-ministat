@@ -37,7 +37,7 @@ func (self *Counter_t) CounterGet() int64  {
 	return self.Sampling
 }
 
-func (self *Counter_t) set_state(ts time.Time, duration time.Duration, in int64) {
+func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) {
 	if self.StateNext != in {
 		self.StateNext = in
 		self.StateNextTs = ts
@@ -48,39 +48,46 @@ func (self *Counter_t) set_state(ts time.Time, duration time.Duration, in int64)
 	}
 }
 
-type Less_t = cache.Less_t[string, *Counter_t]
-
-type Storage_t struct {
-	mx             sync.Mutex
-	timeline       *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
-	truncate       time.Duration
-	evict          Evict
-	limit_backlog  int
-	limit_items    int
-	state_limit    int64
-	state_duration time.Duration
+type online_limit_t struct {
+	limit    int64
+	duration time.Duration
 }
 
-type StorageOptions func(self *Storage_t)
+func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
+	return &online_limit_t{limit: limit, duration: duration}
+}
 
-func StorageOnlineLimit(limit int64, duration time.Duration) StorageOptions {
-	return func(self *Storage_t) {
-		self.state_limit = limit
-		self.state_duration = duration
+func (self *online_limit_t) SetState(ts time.Time, in *Counter_t) {
+	if in.Online >= self.limit {
+		in.SetState(ts, self.duration, 1)
+	} else {
+		in.SetState(ts, self.duration, 0)
 	}
 }
 
-func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, opts ...StorageOptions) (self *Storage_t) {
+type SetState_t func(time.Time, *Counter_t)
+type Less_t = cache.Less_t[string, *Counter_t]
+
+func NoState(time.Time, *Counter_t) {}
+
+type Storage_t struct {
+	mx            sync.Mutex
+	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
+	truncate      time.Duration
+	evict         Evict
+	limit_backlog int
+	limit_items   int
+	set_state     SetState_t
+}
+
+func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, set_state SetState_t) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
 		evict:         evict,
 		limit_backlog: backlog,
 		limit_items:   items,
-		state_limit:   1 << 63 - 1,
-	}
-	for _, v := range opts {
-		v(self)
+		set_state:     set_state,
 	}
 	return
 }
@@ -111,11 +118,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	if counter.Online >= self.state_limit {
-		counter.set_state(start, self.state_duration, 1)
-	} else {
-		counter.set_state(start, self.state_duration, 0)
-	}
+	self.set_state(start, counter)
 	current = *counter
 	self.mx.Unlock()
 	return

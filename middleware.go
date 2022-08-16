@@ -103,7 +103,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
-	if c.Sampling == 0 || c.State == 1 {
+	if c.Sampling == 0 || c.State != 0 {
 		self.err.ServeHTTP(&writer, r)
 	} else {
 		self.ok.ServeHTTP(&writer, r)
