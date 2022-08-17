@@ -49,8 +49,8 @@ func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) 
 }
 
 type SetState interface {
-	Begin(time.Time, *Counter_t)
-	End(time.Time, *Counter_t)
+	MetricBegin(time.Time, *Counter_t)
+	MetricEnd(time.Time, *Counter_t)
 }
 
 type online_limit_t struct {
@@ -62,7 +62,7 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) Begin(ts time.Time, in *Counter_t) {
+func (self *online_limit_t) MetricBegin(ts time.Time, in *Counter_t) {
 	if in.Online >= self.limit {
 		in.SetState(ts, self.duration, 1)
 	} else {
@@ -70,13 +70,13 @@ func (self *online_limit_t) Begin(ts time.Time, in *Counter_t) {
 	}
 }
 
-func (self *online_limit_t) End(ts time.Time, in *Counter_t) {}
+func (self *online_limit_t) MetricEnd(ts time.Time, in *Counter_t) {}
 
 type NoState_t struct {}
 
-func (NoState_t) Begin(time.Time, *Counter_t) {}
+func (NoState_t) MetricBegin(time.Time, *Counter_t) {}
 
-func (NoState_t) End(time.Time, *Counter_t) {}
+func (NoState_t) MetricEnd(time.Time, *Counter_t) {}
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
@@ -128,7 +128,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	self.set_state.Begin(start, counter)
+	self.set_state.MetricBegin(start, counter)
 	current = *counter
 	self.mx.Unlock()
 	return
@@ -151,7 +151,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, start time.Time, end time.T
 	case status_code >= 500:
 		counter.Status500++
 	}
-	self.set_state.End(end, counter)
+	self.set_state.MetricEnd(end, counter)
 	current = *counter
 	self.mx.Unlock()
 	return
