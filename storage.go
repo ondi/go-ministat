@@ -56,7 +56,7 @@ func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) 
 
 type SetState interface {
 	MetricBegin(name string, start time.Time, counter *Counter_t)
-	MetricEnd(name string, start time.Time, end time.Time, counter *Counter_t)
+	MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t)
 }
 
 type online_limit_t struct {
@@ -76,13 +76,13 @@ func (self *online_limit_t) MetricBegin(name string, start time.Time, counter *C
 	}
 }
 
-func (self *online_limit_t) MetricEnd(name string, start time.Time, end time.Time, counter *Counter_t) {}
+func (self *online_limit_t) MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t) {}
 
 type NoState_t struct {}
 
 func (NoState_t) MetricBegin(string, time.Time, *Counter_t) {}
 
-func (NoState_t) MetricEnd(string, time.Time, time.Time, *Counter_t) {}
+func (NoState_t) MetricEnd(string, time.Time, time.Duration, *Counter_t) {}
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
@@ -142,9 +142,8 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, c
 	return
 }
 
-func (self *Storage_t) MetricEnd(res Begin_t, end time.Time, processed int64, status_code int) (current Counter_t) {
+func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (current Counter_t) {
 	self.mx.Lock()
-	diff := end.Sub(res.Start)
 	res.counter.Online--
 	res.counter.DurationSum += diff
 	res.counter.Processed += processed
@@ -159,7 +158,7 @@ func (self *Storage_t) MetricEnd(res Begin_t, end time.Time, processed int64, st
 	case status_code >= 500:
 		res.counter.Status500++
 	}
-	self.set_state.MetricEnd(res.Name, res.Start, end, res.counter)
+	self.set_state.MetricEnd(res.Name, res.Start, diff, res.counter)
 	current = *res.counter
 	self.mx.Unlock()
 	return
