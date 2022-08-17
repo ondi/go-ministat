@@ -29,6 +29,12 @@ type Counter_t struct {
 	StateNextTs time.Time
 }
 
+type Begin_t struct {
+	name string
+	start time.Time
+	counter *Counter_t
+}
+
 func (self *Counter_t) CounterAdd(a int64) {
 	self.Sampling += a
 }
@@ -49,8 +55,8 @@ func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) 
 }
 
 type SetState interface {
-	MetricBegin(time.Time, *Counter_t)
-	MetricEnd(time.Time, *Counter_t)
+	MetricBegin(name string, start time.Time, counter *Counter_t)
+	MetricEnd(name string, start time.Time, end time.Time, counter *Counter_t)
 }
 
 type online_limit_t struct {
@@ -62,21 +68,21 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) MetricBegin(ts time.Time, in *Counter_t) {
-	if in.Online >= self.limit {
-		in.SetState(ts, self.duration, 1)
+func (self *online_limit_t) MetricBegin(name string, start time.Time, counter *Counter_t) {
+	if counter.Online >= self.limit {
+		counter.SetState(start, self.duration, 1)
 	} else {
-		in.SetState(ts, self.duration, 0)
+		counter.SetState(start, self.duration, 0)
 	}
 }
 
-func (self *online_limit_t) MetricEnd(ts time.Time, in *Counter_t) {}
+func (self *online_limit_t) MetricEnd(name string, start time.Time, end time.Time, counter *Counter_t) {}
 
 type NoState_t struct {}
 
-func (NoState_t) MetricBegin(time.Time, *Counter_t) {}
+func (NoState_t) MetricBegin(string, time.Time, *Counter_t) {}
 
-func (NoState_t) MetricEnd(time.Time, *Counter_t) {}
+func (NoState_t) MetricEnd(string, time.Time, time.Time, *Counter_t) {}
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
@@ -107,7 +113,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 	self.evict.MinistatEvict(page, value.DurationSum, value.DurationNum)
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, current Counter_t) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, current Counter_t) {
 	self.mx.Lock()
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Front().Value.Range(func(page string, value *Counter_t) bool {
@@ -122,37 +128,39 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 			return unique.NewOften(self.limit_items, self.evict_page)
 		},
 	)
-	counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
-	counter.Online++
-	counter.DurationNum++
-	if counter.Online > counter.OnlineMax {
-		counter.OnlineMax = counter.Online
+	res.name = name
+	res.start = start
+	res.counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
+	res.counter.Online++
+	res.counter.DurationNum++
+	if res.counter.Online > res.counter.OnlineMax {
+		res.counter.OnlineMax = res.counter.Online
 	}
-	self.set_state.MetricBegin(start, counter)
-	current = *counter
+	self.set_state.MetricBegin(name, start, res.counter)
+	current = *res.counter
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, start time.Time, end time.Time, processed int64, status_code int) (current Counter_t) {
+func (self *Storage_t) MetricEnd(res Begin_t, end time.Time, processed int64, status_code int) (current Counter_t) {
 	self.mx.Lock()
-	diff := end.Sub(start)
-	counter.Online--
-	counter.DurationSum += diff
-	counter.Processed += processed
-	if diff > counter.DurationMax {
-		counter.DurationMax = diff
+	diff := end.Sub(res.start)
+	res.counter.Online--
+	res.counter.DurationSum += diff
+	res.counter.Processed += processed
+	if diff > res.counter.DurationMax {
+		res.counter.DurationMax = diff
 	}
 	switch {
 	case status_code < 400:
-		counter.Status200++
+		res.counter.Status200++
 	case status_code >= 400 && status_code < 500:
-		counter.Status400++
+		res.counter.Status400++
 	case status_code >= 500:
-		counter.Status500++
+		res.counter.Status500++
 	}
-	self.set_state.MetricEnd(end, counter)
-	current = *counter
+	self.set_state.MetricEnd(res.name, res.start, end, res.counter)
+	current = *res.counter
 	self.mx.Unlock()
 	return
 }

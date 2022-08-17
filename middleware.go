@@ -103,7 +103,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	end := time.Now()
-	if self.storage.MetricEnd(p, start, end, 1, writer.status_code).Sampling > 0 {
+	if self.storage.MetricEnd(p, end, 1, writer.status_code).Sampling > 0 {
 		var sb strings.Builder
 		if err = self.views.MinistatDuration(r.Context(), page, end.Sub(start), 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
