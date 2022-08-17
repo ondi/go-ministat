@@ -30,8 +30,8 @@ type Counter_t struct {
 }
 
 type Begin_t struct {
-	name string
-	start time.Time
+	Name string
+	Start time.Time
 	counter *Counter_t
 }
 
@@ -128,8 +128,8 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, c
 			return unique.NewOften(self.limit_items, self.evict_page)
 		},
 	)
-	res.name = name
-	res.start = start
+	res.Name = name
+	res.Start = start
 	res.counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
 	res.counter.Online++
 	res.counter.DurationNum++
@@ -144,7 +144,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, c
 
 func (self *Storage_t) MetricEnd(res Begin_t, end time.Time, processed int64, status_code int) (current Counter_t) {
 	self.mx.Lock()
-	diff := end.Sub(res.start)
+	diff := end.Sub(res.Start)
 	res.counter.Online--
 	res.counter.DurationSum += diff
 	res.counter.Processed += processed
@@ -159,7 +159,7 @@ func (self *Storage_t) MetricEnd(res Begin_t, end time.Time, processed int64, st
 	case status_code >= 500:
 		res.counter.Status500++
 	}
-	self.set_state.MetricEnd(res.name, res.start, end, res.counter)
+	self.set_state.MetricEnd(res.Name, res.Start, end, res.counter)
 	current = *res.counter
 	self.mx.Unlock()
 	return
