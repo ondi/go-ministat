@@ -10,6 +10,7 @@ package ministat
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.opencensus.io/stats"
@@ -27,6 +28,18 @@ type Views interface {
 	MinistatAfter(ctx context.Context, page string) (err error)
 	MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) (err error)
 	List() []*view.View
+}
+
+func TrimValue(s string, out *strings.Builder) *strings.Builder {
+	if len(s) > 255 {
+		s = s[:255]
+	}
+	for _, r := range s {
+		if r >= 0x20 && r <= 0x7e {
+			out.WriteRune(r)
+		}
+	}
+	return out
 }
 
 type no_views_t struct{}
@@ -126,7 +139,8 @@ func (self *views_t) List() []*view.View {
 }
 
 func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error) {
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, page)); err != nil {
+	var sb strings.Builder
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, TrimValue(page, &sb).String())); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
@@ -134,7 +148,8 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error
 }
 
 func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error) {
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, page)); err != nil {
+	var sb strings.Builder
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, TrimValue(page, &sb).String())); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(-1))
@@ -142,10 +157,11 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error)
 }
 
 func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, processed int64, status int, errors string) (err error) {
+	var sb1, sb2 strings.Builder
 	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagName, page),
+		tag.Upsert(self.tagName, TrimValue(page, &sb1).String()),
+		tag.Upsert(self.tagError, TrimValue(errors, &sb2).String()),
 		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
-		tag.Upsert(self.tagError, errors),
 	)
 	if err != nil {
 		return
@@ -155,7 +171,8 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 }
 
 func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error) {
-	ctx, err := tag.New(context.Background(), tag.Upsert(self.tagName, page))
+	var sb strings.Builder
+	ctx, err := tag.New(context.Background(), tag.Upsert(self.tagName, TrimValue(page, &sb).String()))
 	if err != nil {
 		return
 	}

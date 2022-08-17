@@ -48,6 +48,11 @@ func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) 
 	}
 }
 
+type SetState interface {
+	Begin(time.Time, *Counter_t)
+	End(time.Time, *Counter_t)
+}
+
 type online_limit_t struct {
 	limit    int64
 	duration time.Duration
@@ -57,7 +62,7 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) SetState(ts time.Time, in *Counter_t) {
+func (self *online_limit_t) Begin(ts time.Time, in *Counter_t) {
 	if in.Online >= self.limit {
 		in.SetState(ts, self.duration, 1)
 	} else {
@@ -65,10 +70,15 @@ func (self *online_limit_t) SetState(ts time.Time, in *Counter_t) {
 	}
 }
 
-type SetState_t func(time.Time, *Counter_t)
-type Less_t = cache.Less_t[string, *Counter_t]
+func (self *online_limit_t) End(ts time.Time, in *Counter_t) {}
 
-func NoState(time.Time, *Counter_t) {}
+type NoState_t struct {}
+
+func (NoState_t) Begin(time.Time, *Counter_t) {}
+
+func (NoState_t) End(time.Time, *Counter_t) {}
+
+type Less_t = cache.Less_t[string, *Counter_t]
 
 type Storage_t struct {
 	mx            sync.Mutex
@@ -77,10 +87,10 @@ type Storage_t struct {
 	evict         Evict
 	limit_backlog int
 	limit_items   int
-	set_state     SetState_t
+	set_state     SetState
 }
 
-func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, set_state SetState_t) (self *Storage_t) {
+func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
 		truncate:      truncate,
@@ -118,14 +128,15 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	if counter.Online > counter.OnlineMax {
 		counter.OnlineMax = counter.Online
 	}
-	self.set_state(start, counter)
+	self.set_state.Begin(start, counter)
 	current = *counter
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, processed int64, status_code int) (current Counter_t) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, start time.Time, end time.Time, processed int64, status_code int) (current Counter_t) {
 	self.mx.Lock()
+	diff := end.Sub(start)
 	counter.Online--
 	counter.DurationSum += diff
 	counter.Processed += processed
@@ -140,6 +151,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, diff time.Duration, process
 	case status_code >= 500:
 		counter.Status500++
 	}
+	self.set_state.End(end, counter)
 	current = *counter
 	self.mx.Unlock()
 	return

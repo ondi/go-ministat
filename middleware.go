@@ -38,18 +38,6 @@ func GetPageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
 
-func TrimValue(s string, out *strings.Builder) *strings.Builder {
-	if len(s) > 255 {
-		s = s[:255]
-	}
-	for _, r := range s {
-		if r >= 0x20 && r <= 0x7e {
-			out.WriteRune(r)
-		}
-	}
-	return out
-}
-
 func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
 	return sb
 }
@@ -114,11 +102,10 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	diff := time.Since(start)
-	if self.storage.MetricEnd(p, diff, 1, writer.status_code).Sampling > 0 {
-		var sb1, sb2 strings.Builder
-		self.errors(r.Context(), &sb1)
-		if err = self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code, TrimValue(sb1.String(), &sb2).String()); err != nil {
+	end := time.Now()
+	if self.storage.MetricEnd(p, start, end, 1, writer.status_code).Sampling > 0 {
+		var sb strings.Builder
+		if err = self.views.MinistatDuration(r.Context(), page, end.Sub(start), 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
