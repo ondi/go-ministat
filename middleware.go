@@ -34,7 +34,7 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
-func GetPageName(r *http.Request) (res string) {
+func PageName(r *http.Request) (res string) {
 	return r.URL.Path
 }
 
@@ -44,38 +44,28 @@ func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
 
 func NoLog(ctx context.Context, format string, args ...interface{}) {}
 
+type PageName_t func(*http.Request) string
+
 type Middleware_t struct {
 	storage   *Storage_t
 	ok        http.Handler
-	err       http.Handler
+	not_ok    http.Handler
 	errors    GetErr_t
 	log       LogCtx_t
 	views     Views
-	page_name func(*http.Request) string
+	page_name PageName_t
 }
 
-type MiddlewareOptions func(self *Middleware_t)
-
-func MiddlewarePageName(f func(*http.Request) string) MiddlewareOptions {
-	return func(self *Middleware_t) {
-		self.page_name = f
-	}
-}
-
-func NewMiddleware(storage *Storage_t, ok http.Handler, err http.Handler, errors GetErr_t, log LogCtx_t, views Views, opts ...MiddlewareOptions) (self *Middleware_t) {
-	self = &Middleware_t{
+func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
+	return &Middleware_t{
 		storage:   storage,
 		ok:        ok,
-		err:       err,
+		not_ok:    not_ok,
 		errors:    errors,
 		log:       log,
 		views:     views,
-		page_name: GetPageName,
+		page_name: page_name,
 	}
-	for _, v := range opts {
-		v(self)
-	}
-	return
 }
 
 func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +82,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if c.Sampling == 0 || c.State != 0 {
-		self.err.ServeHTTP(&writer, r)
+		self.not_ok.ServeHTTP(&writer, r)
 	} else {
 		self.ok.ServeHTTP(&writer, r)
 	}
