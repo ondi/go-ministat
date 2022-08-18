@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+type PageName_t func(*http.Request) string
+type LogCtx_t func(ctx context.Context, format string, args ...interface{})
+type GetErr_t func(ctx context.Context, sb *strings.Builder) *strings.Builder
+
 type _429_t struct {
 	log  LogCtx_t
 	ts   time.Time
@@ -44,16 +48,14 @@ func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
 
 func NoLog(ctx context.Context, format string, args ...interface{}) {}
 
-type PageName_t func(*http.Request) string
-
 type Middleware_t struct {
 	storage   *Storage_t
 	ok        http.Handler
 	not_ok    http.Handler
-	errors    GetErr_t
-	log       LogCtx_t
-	views     Views
 	page_name PageName_t
+	log       LogCtx_t
+	errors    GetErr_t
+	views     Views
 }
 
 func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
@@ -61,10 +63,10 @@ func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, err
 		storage:   storage,
 		ok:        ok,
 		not_ok:    not_ok,
-		errors:    errors,
-		log:       log,
-		views:     views,
 		page_name: page_name,
+		log:       log,
+		errors:    errors,
+		views:     views,
 	}
 }
 

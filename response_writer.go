@@ -6,7 +6,6 @@ package ministat
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"io"
 	"net"
@@ -15,9 +14,6 @@ import (
 
 	"github.com/ondi/go-tst"
 )
-
-type LogCtx_t func(ctx context.Context, format string, args ...interface{})
-type GetErr_t func(ctx context.Context, sb *strings.Builder) *strings.Builder
 
 type ResponseWriter_t struct {
 	http.ResponseWriter
