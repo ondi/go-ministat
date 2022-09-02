@@ -9,10 +9,6 @@ import (
 	"fmt"
 )
 
-type WithValue interface {
-	Value() (driver.Value, error)
-}
-
 var TRIM = map[byte]bool{
 	'\r': true,
 	'\n': true,
@@ -57,7 +53,7 @@ func (self *CopyWriter_t) Args(args ...interface{}) {
 		if i > 0 {
 			fmt.Fprintf(self, ",")
 		}
-		if temp, ok := v.(WithValue); ok {
+		if temp, _ := v.(interface{ Value() (driver.Value, error) }); temp != nil {
 			if value, err := temp.Value(); err == nil {
 				v = value
 			}
