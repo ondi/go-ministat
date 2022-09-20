@@ -75,27 +75,27 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
-	p, c := self.storage.MetricBegin(page, start)
+	p, sampling, state := self.storage.MetricBegin(page, start)
 
 	var err error
-	if c.Sampling > 0 {
+	if sampling > 0 {
 		if err = self.views.MinistatBefore(r.Context(), page); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
-	if c.Sampling == 0 || c.State != 0 {
+	if sampling == 0 || state != 0 {
 		self.not_ok.ServeHTTP(&writer, r)
 	} else {
 		self.ok.ServeHTTP(&writer, r)
 	}
-	if c.Sampling > 0 {
+	if sampling > 0 {
 		if err = self.views.MinistatAfter(r.Context(), page); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
 
 	diff := time.Since(start)
-	if self.storage.MetricEnd(p, diff, 1, writer.status_code).Sampling > 0 {
+	if self.storage.MetricEnd(p, diff, 1, writer.status_code) > 0 {
 		var sb strings.Builder
 		if err = self.views.MinistatDuration(r.Context(), page, diff, 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)

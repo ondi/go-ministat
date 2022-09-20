@@ -113,7 +113,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 	self.evict.MinistatEvict(page, value.DurationSum, value.DurationNum)
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, current Counter_t) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, sampling int64, state int64) {
 	self.mx.Lock()
 	if self.timeline.Size() > self.limit_backlog {
 		self.timeline.Front().Value.Range(func(page string, value *Counter_t) bool {
@@ -137,12 +137,13 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, c
 		res.counter.OnlineMax = res.counter.Online
 	}
 	self.set_state.MetricBegin(name, start, res.counter)
-	current = *res.counter
+	sampling = res.counter.Sampling
+	state = res.counter.State
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (current Counter_t) {
+func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64) {
 	self.mx.Lock()
 	res.counter.Online--
 	res.counter.DurationSum += diff
@@ -159,7 +160,7 @@ func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int6
 		res.counter.Status500++
 	}
 	self.set_state.MetricEnd(res.Name, res.Start, diff, res.counter)
-	current = *res.counter
+	sampling = res.counter.Sampling
 	self.mx.Unlock()
 	return
 }
