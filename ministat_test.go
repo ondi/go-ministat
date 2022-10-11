@@ -47,3 +47,15 @@ func Test_Evict02(t *testing.T) {
 		s.MetricBegin("test3-"+strconv.FormatInt(i, 10), ts)
 	}
 }
+
+func Test_Args01(t *testing.T) {
+	var cw CopyWriter
+	cw = NoCopyWriter_t{}
+	cw.Reset()
+}
+
+func Test_Args02(t *testing.T) {
+	var cw CopyWriter
+	cw = &CopyWriter_t{}
+	cw.Reset()
+}

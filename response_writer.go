@@ -87,6 +87,6 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		var sb strings.Builder
 		self.errors(r.Context(), &sb)
 		self.log(r.Context(), "%v RESPONSE: %d resp='%s', req='%s', errors=%s",
-			r.URL.String(), writer.status_code, writer.TrimRight(), reader.TrimRight(), sb.String())
+			r.URL.String(), writer.status_code, TrimRight(&writer), TrimRight(&reader), sb.String())
 	}
 }
