@@ -51,11 +51,11 @@ func Test_Evict02(t *testing.T) {
 func Test_Args01(t *testing.T) {
 	var cw CopyWriter
 	cw = NoCopyWriter_t{}
-	cw.Reset()
+	cw.Truncate(0)
 }
 
 func Test_Args02(t *testing.T) {
 	var cw CopyWriter
 	cw = &CopyWriter_t{}
-	cw.Reset()
+	cw.Truncate(0)
 }

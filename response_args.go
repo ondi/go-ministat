@@ -19,7 +19,7 @@ var TRIM = map[byte]bool{
 type CopyWriter interface {
 	Write(p []byte) (n int, err error)
 	Bytes() []byte
-	Reset()
+	Truncate(n int)
 }
 
 func Args(cw CopyWriter, args ...interface{}) {
@@ -77,8 +77,8 @@ func (self *CopyWriter_t) Bytes() []byte {
 	return self.buf[:self.written]
 }
 
-func (self *CopyWriter_t) Reset() {
-	self.written = 0
+func (self *CopyWriter_t) Truncate(n int) {
+	self.written = n
 }
 
 type NoCopyWriter_t struct{}
@@ -91,6 +91,6 @@ func (NoCopyWriter_t) Bytes() (res []byte) {
 	return
 }
 
-func (NoCopyWriter_t) Reset() {
+func (NoCopyWriter_t) Truncate(n int) {
 	return
 }
