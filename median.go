@@ -10,7 +10,7 @@ import (
 	"github.com/ondi/go-cache"
 )
 
-type ValueCmp_t[Value_t any] func(a, b Value_t) int
+type Compare_t[Value_t any] func(a, b Value_t) int
 
 type Median_t[Value_t any] struct {
 	mx sync.Mutex
@@ -31,15 +31,15 @@ func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
 	return
 }
 
-func (self *Median_t[Value_t]) Add(value Value_t, cmp ValueCmp_t[Value_t]) (res Value_t) {
+func (self *Median_t[Value_t]) Add(value Value_t, cmp Compare_t[Value_t]) (res Value_t) {
 	self.mx.Lock()
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
 	var prev_less_than_median bool
-	it, ok := self.cc.CreateFront(self.seq, func() Value_t{return value})
-	if !ok {
+	it, inserted := self.cc.CreateFront(self.seq, func() Value_t{return value})
+	if !inserted {
 		// тут нужно знать из какой половины списка старый элемент
 		// чтобы скорректировать число элементов слева и справа медианы или оставить как есть
 		if cmp(it.Value, self.median.Value) <= 0 {
@@ -54,13 +54,13 @@ func (self *Median_t[Value_t]) Add(value Value_t, cmp ValueCmp_t[Value_t]) (res 
 		it.Value = value
 	}
 	median_passed := self.insert_value(it, cmp)
-	self.set_median(it, median_passed, ok, prev_less_than_median)
+	self.set_median(it, median_passed, inserted, prev_less_than_median)
 	res = self.median.Value
 	self.mx.Unlock()
 	return
 }
 
-func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], cmp ValueCmp_t[Value_t]) (median_passed bool) {
+func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], cmp Compare_t[Value_t]) (median_passed bool) {
 	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
 		if cmp(it.Value, at.Value) < 0 {
 			cache.CutList(it)
