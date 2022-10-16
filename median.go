@@ -67,9 +67,7 @@ func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], c
 			cache.SetPrev(it, at)
 			return
 		}
-		if at == self.median {
-			median_passed = true
-		}
+		median_passed = median_passed || at == self.median
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
