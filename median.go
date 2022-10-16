@@ -67,26 +67,55 @@ func (self *Median_t[Value_t]) Range(f func(key int64, value Value_t) bool) {
 	}
 }
 
+func (self *Median_t[Value_t]) Values() (res []Value_t) {
+	for it := self.cc.Front(); it != self.cc.End(); it=it.Next() {
+		res = append(res, it.Value)
+	}
+	return
+}
+
+func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) {
+	half := self.cc.Size() / 2
+	for it = self.cc.Front(); half>0; it=it.Next() {
+		half--
+	}
+	return
+}
+
 func (self *Median_t[Value_t]) SortValueFront(it *cache.Value_t[int64, Value_t], less cache.Less_t[int64, Value_t]) {
 	var median_passed bool
-	fmt.Fprintf(os.Stderr, "### INPUT: %v\n", it.Value)
+	fmt.Fprintf(os.Stderr, "### INPUT: %v, Median: %v, Values: %v\n", it.Value, self.median.Value, self.Values())
 	for v := self.cc.Front().Next(); v != self.cc.End(); v = v.Next() {
 		fmt.Fprintf(os.Stderr, "CHECK: %v %v\n", it.Value, v.Value)
-		if v == self.median {
-			median_passed = true
-		}
 		if less(it, v) {
 			cache.CutList(it)
 			cache.SetPrev(it, v)
-			if median_passed {
-				self.median = self.median.Prev()
-				fmt.Fprintf(os.Stderr, "MEDIAN PASSED, MOVED TO: %v\n", self.median.Value)
-			}
+			// if self.median.Prev() != it && self.median.Next() != it {
+				if median_passed {
+					self.median = self.median.Next()
+					fmt.Fprintf(os.Stderr, "LESS FIRED, MEDIAN PASSED, MOVED NEXT TO: %v, Values: %v\n", self.median.Value, self.Values())
+				} else {
+					self.median = self.median.Prev()
+					fmt.Fprintf(os.Stderr, "LESS FIRED, MEDIAN NOT PASSED, MOVED PREV TO: %v, Values: %v\n", self.median.Value, self.Values())
+				}
+			// }
+			fmt.Fprintf(os.Stderr, "LESS FIRED RETURN, Median: %v, Values: %v\n", self.median.Value, self.Values())
 			return
 		}
+		if v == self.median {
+			median_passed = true
+		}
 	}
-	self.median = self.median.Prev()
-	fmt.Fprintf(os.Stderr, "DEFAULT MEDIAN TO: %v\n", self.median.Value)
+	// if self.median.Prev() != it && self.median.Next() != it {
+		if median_passed {
+			self.median = self.median.Next()
+			fmt.Fprintf(os.Stderr, "LESS NOT FIRED, MEDIAN PASSED, MOVED NEXT TO: %v, Values: %v\n", self.median.Value, self.Values())
+		} else {
+			self.median = self.median.Prev()
+			fmt.Fprintf(os.Stderr, "LESS NOT FIRED, MEDIAN NOT PASSED, MOVED PREV TO: %v, Values: %v\n", self.median.Value, self.Values())
+		}
+	// }
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
+	// fmt.Fprintf(os.Stderr, "LESS NOT FIRED RETURN, Median: %v, Values: %v\n", self.median.Value, self.Values())
 }
