@@ -37,9 +37,36 @@ func (self *Median_t[Value_t]) Add(value Value_t, less cache.Less_t[int64, Value
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
+	if self.seq == self.median.Key {
+		self.mx.Unlock()
+		fmt.Fprintf(os.Stderr, "MEDIAN OVERVRITE SKIPPED\n")
+		return
+	}
 	it, ok := self.cc.PushFront(self.seq, func() Value_t{return value})
 	if !ok {
+		fmt.Fprintf(os.Stderr, "OVERWRITE old=%v, new=%v, median=%v, left=%v, right=%v\n", it, value, self.median, self.on_left, self.on_right)
+		less_before := less(it, self.median)
 		it.Value = value
+		less_after := less(it, self.median)
+		if less_before == true && less_after == false {
+			self.on_left--
+			self.on_right++
+		}
+		if less_before == false && less_after == true {
+			self.on_left++
+			self.on_right--
+		}
+		fmt.Fprintf(os.Stderr, "OVERWRITE less_before=%v, less_after=%v, left=%v, right=%v\n", less_before, less_after, self.on_left, self.on_right)
+	} else {
+		if self.cc.Size() == 1 {
+			self.median = it
+		} else if less(it, self.median) {
+			self.on_left++
+			fmt.Fprintf(os.Stderr, "VALUE LESS value=%v, median=%v, left=%v, right=%v\n", it.Value, self.median, self.on_left, self.on_right)
+		} else {
+			self.on_right++
+			fmt.Fprintf(os.Stderr, "VALUE GREATER value=%v, median=%v, left=%v, right=%v\n", it.Value, self.median, self.on_left, self.on_right)
+		}
 	}
 	self.SortValueFront(it, less)
 	self.mx.Unlock()
@@ -84,47 +111,38 @@ func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) 
 	return
 }
 
-func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], median_passed bool) {
-	fmt.Fprintf(os.Stderr, "### MEDIAN: Values: %v, Median: %v, left=%v, right=%v, \n", self.Values(), self.median.Value, self.on_left, self.on_right)
+func (self *Median_t[Value_t]) SetMedian() {
+	fmt.Fprintf(os.Stderr, "### MEDIAN: Values: %v, Median: %v, left=%v, right=%v, \n", self.Values(), self.median, self.on_left, self.on_right)
 	if self.on_left < self.on_right - 1 {
 		self.on_left++
 		self.on_right--
 		self.median = self.median.Next()
-		fmt.Fprintf(os.Stderr, "MOVED NEXT TO: %v, left=%v, right=%v\n", self.median.Value, self.on_left, self.on_right)
+		fmt.Fprintf(os.Stderr, "MOVED NEXT TO: %v, left=%v, right=%v\n", self.median, self.on_left, self.on_right)
 	} else if self.on_left - 1 > self.on_right {
 		self.on_left--
 		self.on_right++
 		self.median = self.median.Prev()
-		fmt.Fprintf(os.Stderr, "MOVED PREV TO: %v, left=%v, right=%v\n", self.median.Value, self.on_left, self.on_right)
+		fmt.Fprintf(os.Stderr, "MOVED PREV TO: %v, left=%v, right=%v\n", self.median, self.on_left, self.on_right)
+	}
+	it := self.cc.Front()
+	for i := 0; i < self.on_left; i++ {
+		it = it.Next()
+	}
+	if it.Value != self.median.Value {
+		panic(fmt.Sprintf("ERROR: %v %v %v %v\n", self.on_left, self.on_right, it.Value, self.median))
 	}
 }
 
 func (self *Median_t[Value_t]) SortValueFront(it *cache.Value_t[int64, Value_t], less cache.Less_t[int64, Value_t]) {
-	var median_passed bool
-	fmt.Fprintf(os.Stderr, "###  INPUT: Values: %v, Median: %v, left=%v, right=%v\n", self.Values(), self.median.Value, self.on_left, self.on_right)
 	for v := self.cc.Front().Next(); v != self.cc.End(); v = v.Next() {
 		if less(it, v) {
 			cache.CutList(it)
 			cache.SetPrev(it, v)
-			if median_passed {
-				self.on_right++
-			} else {
-				self.on_left++
-			}
-			self.SetMedian(it, median_passed)
+			self.SetMedian()
 			return
-		}
-		if v == self.median {
-			fmt.Fprintf(os.Stderr, "MEDIAN PASSED\n")
-			median_passed = true
 		}
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
-	if self.cc.Size() == 1 {
-		self.median = it
-	} else {
-		self.on_right++
-		self.SetMedian(it, median_passed)
-	}
+	self.SetMedian()
 }

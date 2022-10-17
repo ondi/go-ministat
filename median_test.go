@@ -50,8 +50,8 @@ func Test_median20(t *testing.T) {
 
 func Test_median30(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	m := NewMedian[int](10)
-	for i := 0; i < 11; i++ {
+	m := NewMedian[int](20)
+	for i := 0; i < 1333; i++ {
 		m.Add(rand.Intn(1000), MLess1)
 	}
 
