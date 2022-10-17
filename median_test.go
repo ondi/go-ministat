@@ -17,10 +17,9 @@ func Cmp1(a, b int) int {
 	return a - b
 }
 
-// func RealMedian[Value_t any](m *Median_t[Value_t]) (key int64, value Value_t) {
-func RealMedian(m *Median_t[int]) (key int64, value int) {
+func RealMedian[Value_t any](m *Median_t[Value_t]) (key int64, value Value_t) {
 	half := m.Size() / 2
-	m.Range(func(k int64, v int) bool {
+	m.Range(func(k int64, v Value_t) bool {
 		key = k
 		value = v
 		half--
@@ -32,11 +31,10 @@ func RealMedian(m *Median_t[int]) (key int64, value int) {
 	return
 }
 
-// func DebugLR[Value_t any](m *Median_t[Value_t]) string {
-func DebugLR(m *Median_t[int]) (res string) {
+func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 	left, right, mkey, mvalue, size := m.DebugLR()
 	count := left
-	m.Range(func(k int64, v int) bool {
+	m.Range(func(k int64, v Value_t) bool {
 		count--
 		if count >= 0 {
 			return true

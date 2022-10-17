@@ -30,8 +30,8 @@ type Counter_t struct {
 }
 
 type Begin_t struct {
-	Name string
-	Start time.Time
+	Name    string
+	Start   time.Time
 	counter *Counter_t
 }
 
@@ -39,7 +39,7 @@ func (self *Counter_t) CounterAdd(a int64) {
 	self.Sampling += a
 }
 
-func (self *Counter_t) CounterGet() int64  {
+func (self *Counter_t) CounterGet() int64 {
 	return self.Sampling
 }
 
@@ -76,9 +76,10 @@ func (self *online_limit_t) MetricBegin(name string, start time.Time, counter *C
 	}
 }
 
-func (self *online_limit_t) MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t) {}
+func (self *online_limit_t) MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t) {
+}
 
-type NoState_t struct {}
+type NoState_t struct{}
 
 func (NoState_t) MetricBegin(string, time.Time, *Counter_t) {}
 
