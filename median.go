@@ -12,14 +12,14 @@ import (
 	"github.com/ondi/go-cache"
 )
 
+type Compare_t[Value_t comparable] func (a, b Value_t) int
+
 type Median_t[Value_t comparable] struct {
 	mx sync.Mutex
 	cc *cache.Cache_t[int64, Value_t]
 	median *cache.Value_t[int64, Value_t]
 	seq int64
 	limit int64
-	on_left int
-	on_right int
 }
 
 func NewMedian[Value_t comparable](limit int64) (self *Median_t[Value_t]) {
@@ -31,44 +31,19 @@ func NewMedian[Value_t comparable](limit int64) (self *Median_t[Value_t]) {
 	return
 }
 
-func (self *Median_t[Value_t]) Add(value Value_t, less cache.Less_t[int64, Value_t]) {
+func (self *Median_t[Value_t]) Add(value Value_t, cmp Compare_t[Value_t]) {
 	self.mx.Lock()
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
-	if self.seq == self.median.Key {
-		self.mx.Unlock()
-		fmt.Fprintf(os.Stderr, "MEDIAN OVERVRITE SKIPPED\n")
-		return
-	}
+	fmt.Fprintf(os.Stderr, "### INPUT: %v\n", value)
 	it, ok := self.cc.PushFront(self.seq, func() Value_t{return value})
 	if !ok {
-		fmt.Fprintf(os.Stderr, "OVERWRITE old=%v, new=%v, median=%v, left=%v, right=%v\n", it, value, self.median, self.on_left, self.on_right)
-		less_before := less(it, self.median)
 		it.Value = value
-		less_after := less(it, self.median)
-		if less_before == true && less_after == false {
-			self.on_left--
-			self.on_right++
-		}
-		if less_before == false && less_after == true {
-			self.on_left++
-			self.on_right--
-		}
-		fmt.Fprintf(os.Stderr, "OVERWRITE less_before=%v, less_after=%v, left=%v, right=%v\n", less_before, less_after, self.on_left, self.on_right)
-	} else {
-		if self.cc.Size() == 1 {
-			self.median = it
-		} else if less(it, self.median) {
-			self.on_left++
-			fmt.Fprintf(os.Stderr, "VALUE LESS value=%v, median=%v, left=%v, right=%v\n", it.Value, self.median, self.on_left, self.on_right)
-		} else {
-			self.on_right++
-			fmt.Fprintf(os.Stderr, "VALUE GREATER value=%v, median=%v, left=%v, right=%v\n", it.Value, self.median, self.on_left, self.on_right)
-		}
 	}
-	self.SortValueFront(it, less)
+	self.SortValueFront(it, cmp)
+	fmt.Fprintf(os.Stderr, "MIDIAN: %v, Values: %v\n", self.median.Value, self.Values())
 	self.mx.Unlock()
 }
 
@@ -111,38 +86,33 @@ func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) 
 	return
 }
 
-func (self *Median_t[Value_t]) SetMedian() {
-	fmt.Fprintf(os.Stderr, "### MEDIAN: Values: %v, Median: %v, left=%v, right=%v, \n", self.Values(), self.median, self.on_left, self.on_right)
-	if self.on_left < self.on_right - 1 {
-		self.on_left++
-		self.on_right--
-		self.median = self.median.Next()
-		fmt.Fprintf(os.Stderr, "MOVED NEXT TO: %v, left=%v, right=%v\n", self.median, self.on_left, self.on_right)
-	} else if self.on_left - 1 > self.on_right {
-		self.on_left--
-		self.on_right++
-		self.median = self.median.Prev()
-		fmt.Fprintf(os.Stderr, "MOVED PREV TO: %v, left=%v, right=%v\n", self.median, self.on_left, self.on_right)
+func (self *Median_t[Value_t]) SetMedian(out *cache.Value_t[int64, Value_t], count int) {
+	for ; count < self.cc.Size() / 2; count++ {
+		fmt.Fprintf(os.Stderr, "REWIND: %v %v\n", count, self.cc.Size())
+		out = out.Next()
 	}
-	it := self.cc.Front()
-	for i := 0; i < self.on_left; i++ {
-		it = it.Next()
-	}
-	if it.Value != self.median.Value {
-		panic(fmt.Sprintf("ERROR: %v %v %v %v\n", self.on_left, self.on_right, it.Value, self.median))
-	}
+	self.median = out
 }
 
-func (self *Median_t[Value_t]) SortValueFront(it *cache.Value_t[int64, Value_t], less cache.Less_t[int64, Value_t]) {
-	for v := self.cc.Front().Next(); v != self.cc.End(); v = v.Next() {
-		if less(it, v) {
+func (self *Median_t[Value_t]) SortValueFront(it *cache.Value_t[int64, Value_t], cmp Compare_t[Value_t]) (out *cache.Value_t[int64, Value_t], count int) {
+	for out = self.cc.Front().Next(); out != self.cc.End(); out = out.Next() {
+		count++
+		fmt.Fprintf(os.Stderr, "COUNT: %v, size=%v, value=%v\n", count, self.cc.Size(), out.Value)
+		if count == (self.cc.Size() - 1) / 2 {
+			fmt.Fprintf(os.Stderr, "MEDIAN FIRED: %v\n", out.Value)
+			self.median = out
+		}
+		if cmp(it.Value, out.Value) < 0 {
 			cache.CutList(it)
-			cache.SetPrev(it, v)
-			self.SetMedian()
+			cache.SetPrev(it, out)
+			self.SetMedian(out, count)
 			return
 		}
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
-	self.SetMedian()
+	if self.cc.Size() == 1 {
+		self.median = it
+	}
+	return
 }
