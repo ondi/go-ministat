@@ -23,6 +23,7 @@ func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
 	self = &Median_t[Value_t]{
 		cc:    cache.New[int64, Value_t](),
 		limit: limit,
+		right: -1,
 	}
 	self.median = self.cc.End()
 	return
@@ -35,9 +36,13 @@ func (self *Median_t[Value_t]) Add(value Value_t, cmp Compare_t[Value_t]) (res V
 	}
 	var prev_less_than_median bool
 	it, inserted := self.cc.CreateFront(self.seq, func() Value_t { return value })
-	if !inserted {
-		// тут нужно знать из какой половины списка старый элемент
-		// чтобы скорректировать число элементов слева и справа медианы или оставить как есть
+	if inserted {
+		if self.cc.Size() == 1 {
+			self.median = it
+		}
+	} else {
+		// нужно определить из какой половины списка перезаписываемый элемент
+		// чтобы скорректировать число элементов слева и справа от медианы или оставить как есть
 		if cmp(it.Value, self.median.Value) <= 0 {
 			prev_less_than_median = true
 		}
@@ -77,15 +82,13 @@ func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], med
 			self.left--
 			self.right++
 		}
-	} else if self.cc.Size() > 1 {
+	} else {
 		if inserted {
 			self.left++
 		} else if prev_less_than_median == false {
 			self.left++
 			self.right--
 		}
-	} else {
-		self.median = it
 	}
 	if self.right < self.left-1 {
 		self.median = self.median.Prev()
