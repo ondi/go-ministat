@@ -18,6 +18,8 @@ type Median_t[Value_t comparable] struct {
 	median *cache.Value_t[int64, Value_t]
 	seq int64
 	limit int64
+	on_left int
+	on_right int
 }
 
 func NewMedian[Value_t comparable](limit int64) (self *Median_t[Value_t]) {
@@ -82,40 +84,47 @@ func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) 
 	return
 }
 
+func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], median_passed bool) {
+	fmt.Fprintf(os.Stderr, "### MEDIAN: Values: %v, Median: %v, left=%v, right=%v, \n", self.Values(), self.median.Value, self.on_left, self.on_right)
+	if self.on_left < self.on_right - 1 {
+		self.on_left++
+		self.on_right--
+		self.median = self.median.Next()
+		fmt.Fprintf(os.Stderr, "MOVED NEXT TO: %v, left=%v, right=%v\n", self.median.Value, self.on_left, self.on_right)
+	} else if self.on_left - 1 > self.on_right {
+		self.on_left--
+		self.on_right++
+		self.median = self.median.Prev()
+		fmt.Fprintf(os.Stderr, "MOVED PREV TO: %v, left=%v, right=%v\n", self.median.Value, self.on_left, self.on_right)
+	}
+}
+
 func (self *Median_t[Value_t]) SortValueFront(it *cache.Value_t[int64, Value_t], less cache.Less_t[int64, Value_t]) {
 	var median_passed bool
-	fmt.Fprintf(os.Stderr, "### INPUT: %v, Median: %v, Values: %v\n", it.Value, self.median.Value, self.Values())
+	fmt.Fprintf(os.Stderr, "###  INPUT: Values: %v, Median: %v, left=%v, right=%v\n", self.Values(), self.median.Value, self.on_left, self.on_right)
 	for v := self.cc.Front().Next(); v != self.cc.End(); v = v.Next() {
-		fmt.Fprintf(os.Stderr, "CHECK: %v %v\n", it.Value, v.Value)
 		if less(it, v) {
 			cache.CutList(it)
 			cache.SetPrev(it, v)
-			// if self.median.Prev() != it && self.median.Next() != it {
-				if median_passed {
-					self.median = self.median.Next()
-					fmt.Fprintf(os.Stderr, "LESS FIRED, MEDIAN PASSED, MOVED NEXT TO: %v, Values: %v\n", self.median.Value, self.Values())
-				} else {
-					self.median = self.median.Prev()
-					fmt.Fprintf(os.Stderr, "LESS FIRED, MEDIAN NOT PASSED, MOVED PREV TO: %v, Values: %v\n", self.median.Value, self.Values())
-				}
-			// }
-			fmt.Fprintf(os.Stderr, "LESS FIRED RETURN, Median: %v, Values: %v\n", self.median.Value, self.Values())
+			if median_passed {
+				self.on_right++
+			} else {
+				self.on_left++
+			}
+			self.SetMedian(it, median_passed)
 			return
 		}
 		if v == self.median {
+			fmt.Fprintf(os.Stderr, "MEDIAN PASSED\n")
 			median_passed = true
 		}
 	}
-	// if self.median.Prev() != it && self.median.Next() != it {
-		if median_passed {
-			self.median = self.median.Next()
-			fmt.Fprintf(os.Stderr, "LESS NOT FIRED, MEDIAN PASSED, MOVED NEXT TO: %v, Values: %v\n", self.median.Value, self.Values())
-		} else {
-			self.median = self.median.Prev()
-			fmt.Fprintf(os.Stderr, "LESS NOT FIRED, MEDIAN NOT PASSED, MOVED PREV TO: %v, Values: %v\n", self.median.Value, self.Values())
-		}
-	// }
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
-	// fmt.Fprintf(os.Stderr, "LESS NOT FIRED RETURN, Median: %v, Values: %v\n", self.median.Value, self.Values())
+	if self.cc.Size() == 1 {
+		self.median = it
+	} else {
+		self.on_right++
+		self.SetMedian(it, median_passed)
+	}
 }
