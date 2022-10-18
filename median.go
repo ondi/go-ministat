@@ -20,8 +20,8 @@ type Median_t[Value_t any] struct {
 	median *cache.Value_t[int64, Value_t]
 	seq int64
 	limit int64
-	left int
-	right int
+	left int64
+	right int64
 }
 
 func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
@@ -140,7 +140,7 @@ func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], med
 		fmt.Fprintf(os.Stderr, "MEDIAN MOVE NEXT: left=%v, right=%v, median=%v, values=%v\n", self.left, self.right, self.median.Value, self.Values())
 	}
 	it = self.cc.Front()
-	for i := 0; i < self.left; i++ {
+	for i := int64(0); i < self.left; i++ {
 		it = it.Next()
 	}
 	if it.Key != self.median.Key {
