@@ -60,35 +60,19 @@ func (self *Median_t[Value_t]) Add(value Value_t, cmp ValueCmp_t[Value_t]) (res 
 	return
 }
 
-func (self *Median_t[Value_t]) Median() (res Value_t) {
-	self.mx.Lock()
-	res = self.median.Value
-	self.mx.Unlock()
-	return
-}
-
-func (self *Median_t[Value_t]) Size() (res int) {
-	self.mx.Lock()
-	res = self.cc.Size()
-	self.mx.Unlock()
-	return
-}
-
-func (self *Median_t[Value_t]) Range(f func(key int64, value Value_t) bool) {
-	self.mx.Lock()
-	defer self.mx.Unlock()
-	for it := self.cc.Front(); it != self.cc.End(); it = it.Next() {
-		if f(it.Key, it.Value) == false {
+func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], cmp ValueCmp_t[Value_t]) (median_passed bool) {
+	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
+		if cmp(it.Value, at.Value) < 0 {
+			cache.CutList(it)
+			cache.SetPrev(it, at)
 			return
 		}
+		if at == self.median {
+			median_passed = true
+		}
 	}
-}
-
-func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) {
-	half := self.cc.Size() / 2
-	for it = self.cc.Front(); half > 0; it = it.Next() {
-		half--
-	}
+	cache.CutList(it)
+	cache.SetPrev(it, self.cc.End())
 	return
 }
 
@@ -128,18 +112,34 @@ func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], med
 	// }
 }
 
-func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], cmp ValueCmp_t[Value_t]) (median_passed bool) {
-	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if cmp(it.Value, at.Value) < 0 {
-			cache.CutList(it)
-			cache.SetPrev(it, at)
+func (self *Median_t[Value_t]) Median() (res Value_t) {
+	self.mx.Lock()
+	res = self.median.Value
+	self.mx.Unlock()
+	return
+}
+
+func (self *Median_t[Value_t]) Size() (res int) {
+	self.mx.Lock()
+	res = self.cc.Size()
+	self.mx.Unlock()
+	return
+}
+
+func (self *Median_t[Value_t]) Range(f func(key int64, value Value_t) bool) {
+	self.mx.Lock()
+	defer self.mx.Unlock()
+	for it := self.cc.Front(); it != self.cc.End(); it = it.Next() {
+		if f(it.Key, it.Value) == false {
 			return
 		}
-		if at == self.median {
-			median_passed = true
-		}
 	}
-	cache.CutList(it)
-	cache.SetPrev(it, self.cc.End())
+}
+
+func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) {
+	half := self.cc.Size() / 2
+	for it = self.cc.Front(); half > 0; it = it.Next() {
+		half--
+	}
 	return
 }
