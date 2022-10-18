@@ -1,5 +1,5 @@
 //
-// go test -v -run Test_median10
+// go test -run Test_median40 -v
 //
 
 package ministat
