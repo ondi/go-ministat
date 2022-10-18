@@ -12,9 +12,9 @@ import (
 	"github.com/ondi/go-cache"
 )
 
-type MedianLess_t[Value_t comparable] func (a, b Value_t) bool
+type ValueCmp_t[Value_t any] func(a, b Value_t) int
 
-type Median_t[Value_t comparable] struct {
+type Median_t[Value_t any] struct {
 	mx sync.Mutex
 	cc *cache.Cache_t[int64, Value_t]
 	median *cache.Value_t[int64, Value_t]
@@ -24,7 +24,7 @@ type Median_t[Value_t comparable] struct {
 	right int
 }
 
-func NewMedian[Value_t comparable](limit int64) (self *Median_t[Value_t]) {
+func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
 	self = &Median_t[Value_t]{
 		cc: cache.New[int64, Value_t](),
 		limit: limit,
@@ -33,7 +33,7 @@ func NewMedian[Value_t comparable](limit int64) (self *Median_t[Value_t]) {
 	return
 }
 
-func (self *Median_t[Value_t]) Add(value Value_t, less MedianLess_t[Value_t]) {
+func (self *Median_t[Value_t]) Add(value Value_t, cmp ValueCmp_t[Value_t]) (res Value_t) {
 	self.mx.Lock()
 	self.seq++
 	if self.seq >= self.limit {
@@ -44,25 +44,25 @@ func (self *Median_t[Value_t]) Add(value Value_t, less MedianLess_t[Value_t]) {
 	it, ok := self.cc.CreateFront(self.seq, func() Value_t{return value})
 	if !ok {
 		// тут нужно знать из какой половины списка старый элемент
-		// чтобы понимать надо ли менять число элементов слева/справа медианы или оставить как есть
-		for it2 := self.cc.Front(); it2 != self.median; it2 = it2.Next() {
-			if it2 == it {
-				prev_less_than_median = true
-				break
-			}
+		// чтобы понимать надо ли менять число элементов слева и справа медианы или оставить как есть
+		if cmp(it.Value, self.median.Value) <= 0 {
+			prev_less_than_median = true
 		}
 		fmt.Fprintf(os.Stderr, "OVERWRITE VALUE: old=%v, new=%v, prev_less=%v, median=%v, left=%v, right=%v, values=%v\n", it.Value, value, prev_less_than_median, self.median.Value, self.left, self.right, self.Values())
 		if it == self.median {
 			self.median = self.median.Next()
+			prev_less_than_median = true
 			self.left++
 			self.right--
-			prev_less_than_median = true
 			fmt.Fprintf(os.Stderr, "OVERWRITE MEDIAN: old=%v, new=%v, prev_less=%v, median=%v, left=%v, right=%v, values=%v\n", it.Value, value, prev_less_than_median, self.median.Value, self.left, self.right, self.Values())
 		}
 		it.Value = value
 	}
-	self.InsertValue(it, less, ok, prev_less_than_median)
+	median_passed := self.insert_value(it, cmp)
+	self.set_median(it, median_passed, ok, prev_less_than_median)
+	res = self.median.Value
 	self.mx.Unlock()
+	return
 }
 
 func (self *Median_t[Value_t]) Median() (res Value_t) {
@@ -104,19 +104,19 @@ func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) 
 	return
 }
 
-func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], median_passed bool, ok bool, prev_less_than_median bool) {
+func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], median_passed bool, inserted bool, prev_less_than_median bool) {
 	
-	fmt.Fprintf(os.Stderr, "SET MEDIAN BEGIN: inserted=%v, passed=%v, before=%v, left=%v, right=%v, median=%v, values=%v\n", ok, median_passed, prev_less_than_median, self.left, self.right, self.median.Value, self.Values())
+	fmt.Fprintf(os.Stderr, "SET MEDIAN BEGIN: inserted=%v, passed=%v, before=%v, left=%v, right=%v, median=%v, values=%v\n", inserted, median_passed, prev_less_than_median, self.left, self.right, self.median.Value, self.Values())
 	
 	if median_passed {
-		if ok {
+		if inserted {
 			self.right++
 		} else if prev_less_than_median {
 			self.left--
 			self.right++
 		}
 	} else if self.cc.Size() > 1 {
-		if ok {
+		if inserted {
 			self.left++
 		} else if prev_less_than_median == false {
 			self.left++
@@ -125,8 +125,8 @@ func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], medi
 	} else {
 		self.median = it
 	}
-	
-	fmt.Fprintf(os.Stderr, "SET MEDIAN   END: inserted=%v, passed=%v, before=%v, left=%v, right=%v, median=%v, values=%v\n", ok, median_passed, prev_less_than_median, self.left, self.right, self.median.Value, self.Values())
+
+	fmt.Fprintf(os.Stderr, "SET MEDIAN   END: inserted=%v, passed=%v, before=%v, left=%v, right=%v, median=%v, values=%v\n", inserted, median_passed, prev_less_than_median, self.left, self.right, self.median.Value, self.Values())
 
 	if self.right < self.left - 1 {
 		self.median = self.median.Prev()
@@ -148,22 +148,18 @@ func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], medi
 	}
 }
 
-func (self *Median_t[Value_t]) InsertValue(it *cache.Value_t[int64, Value_t], less MedianLess_t[Value_t], ok bool, prev_less_than_median bool) {
-	var median_passed bool
+func (self *Median_t[Value_t]) insert_value(it *cache.Value_t[int64, Value_t], cmp ValueCmp_t[Value_t]) (median_passed bool) {
 	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if less(it.Value, at.Value) {
+		if cmp(it.Value, at.Value) < 0 {
 			cache.CutList(it)
 			cache.SetPrev(it, at)
-			self.SetMedian(it, median_passed, ok, prev_less_than_median)
 			return
 		}
 		if at == self.median {
 			median_passed = true
-			fmt.Fprintf(os.Stderr, "MEDIAN PASSED\n")
 		}
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
-	self.SetMedian(it, median_passed, ok, prev_less_than_median)
 	return
 }

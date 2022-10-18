@@ -13,15 +13,14 @@ import (
 	"gotest.tools/assert"
 )
 
-func Less1(a, b int) bool {
-	return a < b
+func Cmp1(a, b int) int {
+	return a - b
 }
 
 func Test_median10(t *testing.T) {
-	input := []int{10, 10, 10, 10, 10, 10, 10, 10, 10, 10}
 	m := NewMedian[int](10)
-	for i := 0; i < 10; i++ {
-		m.Add(input[i], Less1)
+	for i := 0; i < 100; i++ {
+		m.Add(10, Cmp1)
 	}
 
 	m.Range(func(key int64, value int) bool {
@@ -33,10 +32,9 @@ func Test_median10(t *testing.T) {
 }
 
 func Test_median20(t *testing.T) {
-	input := []int{100, 90, 80, 70, 60, 50, 40, 30, 20, 10}
 	m := NewMedian[int](10)
-	for i := 0; i < 10; i++ {
-		m.Add(input[i], Less1)
+	for i := 0; i < 100; i++ {
+		m.Add(i, Cmp1)
 	}
 
 	m.Range(func(key int64, value int) bool {
@@ -48,10 +46,9 @@ func Test_median20(t *testing.T) {
 }
 
 func Test_median30(t *testing.T) {
-	input := []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
 	m := NewMedian[int](10)
-	for i := 0; i < 10; i++ {
-		m.Add(input[i], Less1)
+	for i := 100; i > 0; i-- {
+		m.Add(i, Cmp1)
 	}
 
 	m.Range(func(key int64, value int) bool {
@@ -64,9 +61,9 @@ func Test_median30(t *testing.T) {
 
 func Test_median40(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	m := NewMedian[int](11)
+	m := NewMedian[int](21)
 	for i := 0; i < 12345; i++ {
-		m.Add(rand.Intn(10000), Less1)
+		m.Add(rand.Intn(1000), Cmp1)
 	}
 
 	m.Range(func(key int64, value int) bool {
