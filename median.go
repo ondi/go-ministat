@@ -151,7 +151,7 @@ func (self *Median_t[Value_t]) SetMedian(it *cache.Value_t[int64, Value_t], medi
 func (self *Median_t[Value_t]) InsertValue(it *cache.Value_t[int64, Value_t], less MedianLess_t[Value_t], ok bool, prev_less_than_median bool) {
 	var median_passed bool
 	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if less(it.Value, at.Value) && it != at {
+		if less(it.Value, at.Value) {
 			cache.CutList(it)
 			cache.SetPrev(it, at)
 			self.SetMedian(it, median_passed, ok, prev_less_than_median)
