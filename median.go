@@ -101,13 +101,6 @@ func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], med
 		self.left++
 		self.right--
 	}
-	// it = self.cc.Front()
-	// for i := int64(0); i < self.left; i++ {
-	// 	it = it.Next()
-	// }
-	// if it.Key != self.median.Key {
-	// 	panic(fmt.Sprintf("MEDIAN CHECK: left=%v, right=%v, check=%v, median=%v", self.left, self.right, it, self.median))
-	// }
 }
 
 func (self *Median_t[Value_t]) Median() (res Value_t) {
@@ -134,10 +127,13 @@ func (self *Median_t[Value_t]) Range(f func(key int64, value Value_t) bool) {
 	}
 }
 
-func (self *Median_t[Value_t]) RealMedian() (it *cache.Value_t[int64, Value_t]) {
-	half := self.cc.Size() / 2
-	for it = self.cc.Front(); half > 0; it = it.Next() {
-		half--
-	}
+func (self *Median_t[Value_t]) DebugLR() (left int64, right int64, mkey int64, mvalue Value_t, size int) {
+	self.mx.Lock()
+	left = self.left
+	right = self.right
+	mkey = self.median.Key
+	mvalue = self.median.Value
+	size = self.cc.Size()
+	self.mx.Unlock()
 	return
 }
