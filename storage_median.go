@@ -4,7 +4,11 @@
 
 package ministat
 
-import "github.com/ondi/go-unique"
+import (
+	"sync"
+
+	"github.com/ondi/go-unique"
+)
 
 type CounterMedian_t[Value_t any] struct {
 	Sampling int64 // reservoir sampling
@@ -26,21 +30,24 @@ func (self *CounterMedian_t[Value_t]) CounterGet() int64 {
 }
 
 type StorageMedian_t[Value_t any] struct {
+	mx       sync.Mutex
 	often    *unique.Often_t[*CounterMedian_t[Value_t]]
 	capacity int64
 }
 
-func NewStorageMedian[Value_t any](items int, capacity int64) (self *StorageMedian_t[Value_t]) {
+func NewStorageMedian[Value_t any](limit int, capacity int64) (self *StorageMedian_t[Value_t]) {
 	self = &StorageMedian_t[Value_t]{
-		often:    unique.NewOften(items, self.evict_page),
+		often:    unique.NewOften(limit, self.evict_page),
 		capacity: capacity,
 	}
 	return
 }
 
-func (self StorageMedian_t[Value_t]) Add(name string, value Value_t, cmp Compare_t[Value_t]) (res Value_t, ok bool) {
+func (self *StorageMedian_t[Value_t]) Add(name string, value Value_t, cmp Compare_t[Value_t]) (res Value_t, ok bool) {
+	self.mx.Lock()
 	it, ok := self.often.Add(name, func() *CounterMedian_t[Value_t] { return NewCounterMedian[Value_t](self.capacity) })
 	res = it.Median.Add(value, cmp)
+	self.mx.Unlock()
 	return
 }
 
