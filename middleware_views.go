@@ -1,8 +1,8 @@
 //
-// RPS = sum(rate(http_request_count{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page)
-// PENDING = sum(http_pending_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
-// LATENCY_OLD = histogram_quantile(0.95, sum(rate(http_latency_hist_bucket{kubernetes_pod_name=~"POD_NAME.*"}[1m])) by(page, le))
-// LATENCT_NEW = sum(http_latency_sum{kubernetes_pod_name=~"POD_NAME.*"}) by (page)/sum(http_latency_num{kubernetes_pod_name=~"POD_NAME.*"}) by (page)
+// RPS = sum(rate(http_request_count{app_name="$app_name"}[1m])) by(page)
+// PENDING = sum(http_pending_sum{app_name="$app_name"}) by (page)
+// LATENCY_OLD = histogram_quantile(0.95, sum(rate(http_latency_hist_bucket{app_name="$app_name"}[1m])) by(page, le))
+// LATENCT_NEW = sum(http_latency_sum{app_name="$app_name"}) by (page)/sum(http_latency_num{app_name="$app_name"}) by (page)
 //
 
 package ministat

@@ -87,23 +87,29 @@ func (NoState_t) MetricEnd(string, time.Time, time.Duration, *Counter_t) {}
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
+func CmpDuration(a, b time.Duration) int {
+	return int(a - b)
+}
+
 type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
+	median        *StorageMedian_t[time.Duration]
 	truncate      time.Duration
 	evict         Evict
-	limit_backlog int
-	limit_items   int
+	ts_backlog    int
+	limit_pages   int
 	set_state     SetState
 }
 
-func NewStorage(backlog int, items int, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
+func NewStorage(ts_backlog int, limit_pages int, median_capacity int64, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
+		median:        NewStorageMedian[time.Duration](limit_pages, median_capacity),
 		truncate:      truncate,
 		evict:         evict,
-		limit_backlog: backlog,
-		limit_items:   items,
+		ts_backlog:    ts_backlog,
+		limit_pages:   limit_pages,
 		set_state:     set_state,
 	}
 	return
@@ -116,7 +122,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, sampling int64, state int64) {
 	self.mx.Lock()
-	if self.timeline.Size() > self.limit_backlog {
+	if self.timeline.Size() > self.ts_backlog {
 		self.timeline.Front().Value.Range(func(page string, value *Counter_t) bool {
 			self.evict_page(page, value)
 			return true
@@ -126,7 +132,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, s
 	it, _ := self.timeline.CreateBack(
 		start.Truncate(self.truncate),
 		func() *unique.Often_t[*Counter_t] {
-			return unique.NewOften(self.limit_items, self.evict_page)
+			return unique.NewOften(self.limit_pages, self.evict_page)
 		},
 	)
 	res.Name = name
@@ -144,7 +150,9 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, s
 	return
 }
 
-func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64) {
+func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64, median time.Duration) {
+	median, _ = self.median.Add(res.Name, diff, CmpDuration)
+	
 	self.mx.Lock()
 	res.counter.Online--
 	res.counter.DurationSum += diff
