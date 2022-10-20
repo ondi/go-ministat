@@ -175,7 +175,7 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 	if err != nil {
 		return
 	}
-	stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pagePayload.M(processed))
+	stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pageLatencyMedian.M(int64(median)), self.pagePayload.M(processed))
 	return
 }
 
