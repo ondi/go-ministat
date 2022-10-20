@@ -54,7 +54,7 @@ func NoLog(ctx context.Context, format string, args ...interface{}) {}
 
 type Middleware_t struct {
 	storage   *Storage_t
-	median    *Median_t[time.Duration]
+	median    *StorageMedian_t[time.Duration]
 	ok        http.Handler
 	not_ok    http.Handler
 	page_name PageName_t
@@ -66,7 +66,7 @@ type Middleware_t struct {
 func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
 	return &Middleware_t{
 		storage:   storage,
-		median:    NewMedian[time.Duration](500),
+		median:    NewStorageMedian[time.Duration](128, 500),
 		ok:        ok,
 		not_ok:    not_ok,
 		page_name: page_name,
@@ -101,7 +101,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	diff := time.Since(start)
-	median := self.median.Add(diff, CmpDuration)
+	median, _ := self.median.Add(page, diff, CmpDuration)
 	if self.storage.MetricEnd(p, diff, 1, writer.status_code) > 0 {
 		var sb strings.Builder
 		if err = self.views.MinistatDuration(r.Context(), page, diff, median, 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {
