@@ -35,7 +35,7 @@ func (self *Median_t[Value_t]) Add(value Value_t, cmp Compare_t[Value_t]) (res V
 		self.seq = 0
 	}
 	var prev_less_than_median bool
-	it, inserted := self.cc.CreateFront(self.seq, func() Value_t { return value })
+	it, inserted := self.cc.CreateBack(self.seq, func() Value_t { return value })
 	if inserted {
 		if self.cc.Size() == 1 {
 			self.median = it
