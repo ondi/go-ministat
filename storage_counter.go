@@ -94,7 +94,6 @@ func CmpDuration(a, b time.Duration) int {
 type Storage_t struct {
 	mx            sync.Mutex
 	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
-	median        *StorageMedian_t[time.Duration]
 	truncate      time.Duration
 	evict         Evict
 	ts_backlog    int
@@ -102,10 +101,9 @@ type Storage_t struct {
 	set_state     SetState
 }
 
-func NewStorage(ts_backlog int, limit_pages int, median_capacity int64, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
+func NewStorage(ts_backlog int, limit_pages int, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
 	self = &Storage_t{
 		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
-		median:        NewStorageMedian[time.Duration](limit_pages, median_capacity),
 		truncate:      truncate,
 		evict:         evict,
 		ts_backlog:    ts_backlog,
@@ -150,9 +148,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, s
 	return
 }
 
-func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64, median time.Duration) {
-	median, _ = self.median.Add(res.Name, diff, CmpDuration)
-	
+func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64) {
 	self.mx.Lock()
 	res.counter.Online--
 	res.counter.DurationSum += diff
