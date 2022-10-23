@@ -8,20 +8,24 @@ import (
 	"github.com/ondi/go-cache"
 )
 
-type Compare_t[Value_t any] func(a, b Value_t) int
+type Compare_t[T any] func(a T, b T) int
 
-type Median_t[Value_t any] struct {
-	cc     *cache.Cache_t[int64, Value_t]
-	median *cache.Value_t[int64, Value_t]
+type Value_t[Mapped_t any] struct {
+	Measure Mapped_t
+}
+
+type Median_t[Mapped_t any] struct {
+	cc     *cache.Cache_t[int64, Value_t[Mapped_t]]
+	median *cache.Value_t[int64, Value_t[Mapped_t]]
 	seq    int64
 	limit  int64
 	left   int64
 	right  int64
 }
 
-func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
-	self = &Median_t[Value_t]{
-		cc:    cache.New[int64, Value_t](),
+func NewMedian[Mapped_t any](limit int64) (self *Median_t[Mapped_t]) {
+	self = &Median_t[Mapped_t]{
+		cc:    cache.New[int64, Value_t[Mapped_t]](),
 		limit: limit,
 		right: -1,
 	}
@@ -29,40 +33,42 @@ func NewMedian[Value_t any](limit int64) (self *Median_t[Value_t]) {
 	return
 }
 
-func (self *Median_t[Value_t]) Add(value Value_t, cmp Compare_t[Value_t]) (res Value_t) {
+func (self *Median_t[Mapped_t]) Add(measure Mapped_t, cmp Compare_t[Mapped_t]) (res Mapped_t) {
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
-	var prev_less_than_median bool
-	it, inserted := self.cc.CreateBack(self.seq, func() Value_t { return value })
+	var less_before bool
+	it, inserted := self.cc.CreateBack(self.seq, func() Value_t[Mapped_t] {
+		return Value_t[Mapped_t]{Measure: measure}
+	})
 	if inserted {
 		if self.cc.Size() == 1 {
 			self.median = it
 		}
 	} else {
-		// нужно определить из какой половины списка перезаписываемый элемент
+		// определяем из какой половины списка перезаписываемый элемент
 		// чтобы скорректировать число элементов слева и справа от медианы или оставить как есть
-		if cmp(it.Value, self.median.Value) <= 0 {
-			prev_less_than_median = true
+		if cmp(it.Value.Measure, self.median.Value.Measure) <= 0 {
+			less_before = true
 		}
 		if it == self.median {
 			self.median = self.median.Next()
-			prev_less_than_median = true
+			less_before = true
 			self.left++
 			self.right--
 		}
-		it.Value = value
+		it.Value.Measure = measure
 	}
 	median_passed := self.move_value(it, cmp)
-	self.set_median(it, median_passed, inserted, prev_less_than_median)
-	res = self.median.Value
+	self.set_median(it, median_passed, inserted, less_before)
+	res = self.median.Value.Measure
 	return
 }
 
-func (self *Median_t[Value_t]) move_value(it *cache.Value_t[int64, Value_t], cmp Compare_t[Value_t]) (median_passed bool) {
+func (self *Median_t[Mapped_t]) move_value(it *cache.Value_t[int64, Value_t[Mapped_t]], cmp Compare_t[Mapped_t]) (median_passed bool) {
 	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if cmp(it.Value, at.Value) < 0 {
+		if cmp(it.Value.Measure, at.Value.Measure) < 0 {
 			cache.CutList(it)
 			cache.SetPrev(it, at)
 			return
@@ -74,18 +80,18 @@ func (self *Median_t[Value_t]) move_value(it *cache.Value_t[int64, Value_t], cmp
 	return
 }
 
-func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], median_passed bool, inserted bool, prev_less_than_median bool) {
+func (self *Median_t[Mapped_t]) set_median(it *cache.Value_t[int64, Value_t[Mapped_t]], median_passed bool, inserted bool, less_before bool) {
 	if median_passed {
 		if inserted {
 			self.right++
-		} else if prev_less_than_median {
+		} else if less_before {
 			self.left--
 			self.right++
 		}
 	} else {
 		if inserted {
 			self.left++
-		} else if prev_less_than_median == false {
+		} else if less_before == false {
 			self.left++
 			self.right--
 		}
@@ -101,27 +107,27 @@ func (self *Median_t[Value_t]) set_median(it *cache.Value_t[int64, Value_t], med
 	}
 }
 
-func (self *Median_t[Value_t]) Median() (res Value_t) {
-	return self.median.Value
+func (self *Median_t[Mapped_t]) Median() (res Mapped_t) {
+	return self.median.Value.Measure
 }
 
-func (self *Median_t[Value_t]) Size() (res int) {
+func (self *Median_t[Mapped_t]) Size() (res int) {
 	return self.cc.Size()
 }
 
-func (self *Median_t[Value_t]) Range(f func(key int64, value Value_t) bool) {
+func (self *Median_t[Mapped_t]) Range(f func(key int64, value Mapped_t) bool) {
 	for it := self.cc.Front(); it != self.cc.End(); it = it.Next() {
-		if f(it.Key, it.Value) == false {
+		if f(it.Key, it.Value.Measure) == false {
 			return
 		}
 	}
 }
 
-func (self *Median_t[Value_t]) DebugLR() (left int64, right int64, mkey int64, mvalue Value_t, size int) {
+func (self *Median_t[Mapped_t]) DebugLR() (left int64, right int64, mkey int64, mvalue Mapped_t, size int) {
 	left = self.left
 	right = self.right
 	mkey = self.median.Key
-	mvalue = self.median.Value
+	mvalue = self.median.Value.Measure
 	size = self.cc.Size()
 	return
 }
