@@ -12,8 +12,8 @@ import (
 )
 
 type CounterMedian_t[Measure_t any] struct {
-	Sampling int64 // reservoir sampling
 	Median   *Median_t[Measure_t]
+	Sampling int64
 }
 
 func NewCounterMedian[Measure_t any](capacity int64) *CounterMedian_t[Measure_t] {

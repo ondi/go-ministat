@@ -13,26 +13,26 @@ import (
 )
 
 type Counter_t struct {
-	Sampling    int64 // reservoir sampling
-	Online      int64
-	OnlineMax   int64
-	Processed   int64
+	StateTs     time.Time
+	StateNextTs time.Time
+	DurationMax time.Duration
 	DurationNum time.Duration
 	DurationSum time.Duration
-	DurationMax time.Duration
+	Sampling    int64
 	Status200   int64
 	Status400   int64
 	Status500   int64
 	State       int64
-	StateTs     time.Time
 	StateNext   int64
-	StateNextTs time.Time
+	Online      int64
+	OnlineMax   int64
+	Processed   int64
 }
 
 type Begin_t struct {
-	Name    string
 	Start   time.Time
 	counter *Counter_t
+	Name    string
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -92,23 +92,23 @@ func CmpDuration(a, b time.Duration) int {
 }
 
 type Storage_t struct {
-	mx            sync.Mutex
-	timeline      *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
-	truncate      time.Duration
-	evict         Evict
-	ts_backlog    int
-	limit_pages   int
-	set_state     SetState
+	mx          sync.Mutex
+	evict       Evict
+	set_state   SetState
+	timeline    *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
+	truncate    time.Duration
+	ts_backlog  int
+	limit_pages int
 }
 
 func NewStorage(ts_backlog int, limit_pages int, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
 	self = &Storage_t{
-		timeline:      cache.New[time.Time, *unique.Often_t[*Counter_t]](),
-		truncate:      truncate,
-		evict:         evict,
-		ts_backlog:    ts_backlog,
-		limit_pages:   limit_pages,
-		set_state:     set_state,
+		timeline:    cache.New[time.Time, *unique.Often_t[*Counter_t]](),
+		truncate:    truncate,
+		evict:       evict,
+		ts_backlog:  ts_backlog,
+		limit_pages: limit_pages,
+		set_state:   set_state,
 	}
 	return
 }

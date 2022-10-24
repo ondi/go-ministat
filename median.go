@@ -13,6 +13,7 @@ import (
 type Compare_t[T any] func(a T, b T) int
 
 type Mapped_t[Measure_t any] struct {
+	// Ts      time.Time
 	Measure Measure_t
 }
 
