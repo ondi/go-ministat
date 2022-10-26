@@ -17,9 +17,9 @@ func Cmp1(a, b int) int {
 	return a - b
 }
 
-func RealMedian[Value_t any](m *Median_t[Value_t]) (key int64, value Value_t) {
+func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
 	half := m.Size() / 2
-	m.Range(func(k int64, v Value_t) bool {
+	m.Range(func(k int, v Value_t) bool {
 		key = k
 		value = v
 		half--
@@ -34,7 +34,7 @@ func RealMedian[Value_t any](m *Median_t[Value_t]) (key int64, value Value_t) {
 func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 	left, right, mkey, mvalue, size := m.DebugLR()
 	count := left
-	m.Range(func(k int64, v Value_t) bool {
+	m.Range(func(k int, v Value_t) bool {
 		count--
 		if count >= 0 {
 			return true
@@ -56,12 +56,13 @@ func Test_median10(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int64, value int) bool {
+	m.Range(func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
 
-	_, v := RealMedian(m)
+	k, v := RealMedian(m)
+	t.Logf("REAL MEDIAN: %v %v", k, v)
 	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
 }
 
@@ -74,12 +75,13 @@ func Test_median20(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int64, value int) bool {
+	m.Range(func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
 
-	_, v := RealMedian(m)
+	k, v := RealMedian(m)
+	t.Logf("REAL MEDIAN: %v %v", k, v)
 	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
 }
 
@@ -92,7 +94,7 @@ func Test_median30(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int64, value int) bool {
+	m.Range(func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
@@ -110,7 +112,7 @@ func Test_median40(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int64, value int) bool {
+	m.Range(func(key int, value int) bool {
 		t.Logf("RANGE: %02d %v", key, value)
 		return true
 	})
