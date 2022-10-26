@@ -45,7 +45,7 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 	if inserted {
 		if self.cc.Size() == 1 {
 			self.median = it
-			res = self.median.Value.Data
+			res = data
 			return
 		}
 	} else {
