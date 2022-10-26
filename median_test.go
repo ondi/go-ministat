@@ -17,9 +17,17 @@ func Cmp1(a, b int) int {
 	return a - b
 }
 
-func Values[Value_t any](m *Median_t[Value_t]) (res []string) {
+func KeyValues[Value_t any](m *Median_t[Value_t]) (res []string) {
 	m.Range(func(k int, v Value_t) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v))
+		return true
+	})
+	return
+}
+
+func Keys[Value_t any](m *Median_t[Value_t]) (res []int) {
+	m.Range(func(k int, v Value_t) bool {
+		res = append(res, k)
 		return true
 	})
 	return
@@ -134,10 +142,11 @@ func Test_median40(t *testing.T) {
 
 func Test_median50(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	size := 15
+	size := 21
 	m := NewMedian[int](size)
 	for i := 0; i < 20000; i++ {
 		m.Add(rand.Intn(1000), Cmp1)
+		// m.Add(100, Cmp1)
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
 	}
@@ -151,8 +160,10 @@ func Test_median50(t *testing.T) {
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, m.Median())
 
 	for i := 0; i < size; i++ {
-		t.Logf("REMOVE: %v", i)
-		m.Remove(i, Cmp1)
+		keys := Keys(m)
+		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
+		t.Logf("REMOVE: %v", keys[0])
+		m.Remove(keys[0], Cmp1)
 
 		m.Range(func(key int, value int) bool {
 			t.Logf("RANGE: %02d %v", key, value)

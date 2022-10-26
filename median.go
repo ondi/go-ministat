@@ -77,16 +77,19 @@ func (self *Median_t[T]) Remove(key int, cmp Compare_t[T]) {
 }
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
-	self.cc.Remove(it.Key)
-	if self.cc.Size() == 0 {
+	if self.cc.Size() == 1 {
+		self.cc.Remove(it.Key)
 		self.median = self.cc.End()
 		self.left = 0
 		self.right = 0
-	} else if cmp(it.Value.Data, self.median.Value.Data) < 0 {
+	} else if temp := cmp(it.Value.Data, self.median.Value.Data); temp < 0 {
+		self.cc.Remove(it.Key)
 		self.left--
-	} else if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+	} else if temp > 0 {
+		self.cc.Remove(it.Key)
 		self.right--
 	} else {
+		self.cc.Remove(self.median.Key)
 		self.median = self.median.Next()
 		self.right--
 	}
