@@ -28,7 +28,6 @@ func NewMedian[T any](limit int) (self *Median_t[T]) {
 	self = &Median_t[T]{
 		cc:    cache.New[int, Mapped_t[T]](),
 		limit: limit,
-		right: -1,
 	}
 	self.median = self.cc.End()
 	return
@@ -46,6 +45,8 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 	if inserted {
 		if self.cc.Size() == 1 {
 			self.median = it
+			res = self.median.Value.Data
+			return
 		}
 	} else {
 		// определяем из какой половины списка перезаписываемый элемент
@@ -61,13 +62,40 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 		it.Value.Data = data
 	}
 	median_passed := self.move_value(it, cmp)
-	self.set_median(it, median_passed, inserted, less_before)
+	self.move_pointers(median_passed, inserted, less_before)
+	self.move_median()
 	res = self.median.Value.Data
 	return
 }
 
+func (self *Median_t[T]) Remove(key int, cmp Compare_t[T]) {
+	it, ok := self.cc.Find(key)
+	if !ok {
+		return
+	}
+	self.remove(it, cmp)
+}
+
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
-	// нет способа определить из какой половины элемент, кроме полного прохода по списку
+	if self.cc.Size() == 1 {
+		self.median = self.cc.End()
+		self.left = 0
+		self.right = 0
+	} else if cmp(it.Value.Data, self.median.Value.Data) < 0 {
+		self.left--
+	} else if it == self.median {
+		if self.median.Next() != self.cc.End() {
+			self.median = self.median.Next()
+			self.right--
+		} else {
+			self.median = self.median.Prev()
+			self.left--
+		}
+	} else {
+		self.right--
+	}
+	self.cc.Remove(it.Key)
+	self.move_median()
 }
 
 func (self *Median_t[T]) move_value(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) (median_passed bool) {
@@ -84,7 +112,7 @@ func (self *Median_t[T]) move_value(it *cache.Value_t[int, Mapped_t[T]], cmp Com
 	return
 }
 
-func (self *Median_t[T]) set_median(it *cache.Value_t[int, Mapped_t[T]], median_passed bool, inserted bool, less_before bool) {
+func (self *Median_t[T]) move_pointers(median_passed bool, inserted bool, less_before bool) {
 	if median_passed {
 		if inserted {
 			self.right++
@@ -100,6 +128,9 @@ func (self *Median_t[T]) set_median(it *cache.Value_t[int, Mapped_t[T]], median_
 			self.right--
 		}
 	}
+}
+
+func (self *Median_t[T]) move_median() {
 	if self.right < self.left-1 {
 		self.median = self.median.Prev()
 		self.left--

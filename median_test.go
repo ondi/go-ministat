@@ -41,7 +41,7 @@ func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
 
 func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 	left, right, mkey, mvalue, size := m.DebugLR()
-	if left < 0 || right < 0 || left+right != size-1 {
+	if size > 0 && (left < 0 || right < 0 || left+right != size-1) {
 		res = fmt.Sprintf("SIZE: left=%v, right=%v, size=%v", left, right, size)
 		return
 	}
@@ -107,14 +107,16 @@ func Test_median30(t *testing.T) {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
-	_, v := RealMedian(m)
+
+	k, v := RealMedian(m)
+	t.Logf("REAL MEDIAN: %v %v", k, v)
 	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
 }
 
 func Test_median40(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	m := NewMedian[int](21)
-	for i := 0; i < 12345; i++ {
+	for i := 0; i < 20000; i++ {
 		m.Add(rand.Intn(1000), Cmp1)
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
@@ -125,6 +127,42 @@ func Test_median40(t *testing.T) {
 		return true
 	})
 
-	_, v := RealMedian(m)
+	k, v := RealMedian(m)
+	t.Logf("REAL MEDIAN: %v %v", k, v)
 	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
+}
+
+func Test_median50(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	size := 15
+	m := NewMedian[int](size)
+	for i := 0; i < 20000; i++ {
+		m.Add(rand.Intn(1000), Cmp1)
+		check := DebugLR(m)
+		assert.Assert(t, len(check) == 0, check)
+	}
+
+	m.Range(func(key int, value int) bool {
+		t.Logf("RANGE: %02d %v", key, value)
+		return true
+	})
+
+	k, v := RealMedian(m)
+	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, m.Median())
+
+	for i := 0; i < size; i++ {
+		t.Logf("REMOVE: %v", i)
+		m.Remove(i, Cmp1)
+
+		m.Range(func(key int, value int) bool {
+			t.Logf("RANGE: %02d %v", key, value)
+			return true
+		})
+
+		left, right, mkey, mvalue, size := m.DebugLR()
+		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v, median=%v", size, left, right, mkey, mvalue, m.Median())
+
+		check := DebugLR(m)
+		assert.Assert(t, len(check) == 0, check)
+	}
 }
