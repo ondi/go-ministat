@@ -82,8 +82,6 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare
 		self.median = self.cc.End()
 		self.left = 0
 		self.right = 0
-	} else if cmp(it.Value.Data, self.median.Value.Data) < 0 {
-		self.left--
 	} else if it == self.median {
 		if self.median.Next() != self.cc.End() {
 			self.median = self.median.Next()
@@ -92,6 +90,8 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare
 			self.median = self.median.Prev()
 			self.left--
 		}
+	} else if cmp(it.Value.Data, self.median.Value.Data) <= 0 {
+		self.left--
 	} else {
 		self.right--
 	}
