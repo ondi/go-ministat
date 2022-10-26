@@ -160,7 +160,7 @@ func Test_median50(t *testing.T) {
 		})
 
 		left, right, mkey, mvalue, size := m.DebugLR()
-		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v, median=%v", size, left, right, mkey, mvalue, m.Median())
+		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v", size, left, right, mkey, mvalue)
 
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
