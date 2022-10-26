@@ -28,6 +28,7 @@ func NewMedian[T any](limit int) (self *Median_t[T]) {
 	self = &Median_t[T]{
 		cc:    cache.New[int, Mapped_t[T]](),
 		limit: limit,
+		right: -1,
 	}
 	self.median = self.cc.End()
 	return
@@ -45,12 +46,10 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 	if inserted {
 		if self.cc.Size() == 1 {
 			self.median = it
-			res = data
-			return
 		}
 	} else {
-		// определяем из какой половины списка перезаписываемый элемент
-		// чтобы скорректировать число элементов слева и справа от медианы или оставить как есть
+		// если перезаписываемый элемент и новый элемент находятся в одной и той же
+		// половине списка от медианы коррекция указалетей left, right не требуется
 		if cmp(it.Value.Data, self.median.Value.Data) < 0 {
 			less_before = true
 		} else if it == self.median {
@@ -77,12 +76,7 @@ func (self *Median_t[T]) Remove(key int, cmp Compare_t[T]) {
 }
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
-	if self.cc.Size() == 1 {
-		self.cc.Remove(it.Key)
-		self.median = self.cc.End()
-		self.left = 0
-		self.right = 0
-	} else if temp := cmp(it.Value.Data, self.median.Value.Data); temp < 0 {
+	if temp := cmp(it.Value.Data, self.median.Value.Data); temp < 0 {
 		self.cc.Remove(it.Key)
 		self.left--
 	} else if temp > 0 {
