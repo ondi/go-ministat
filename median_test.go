@@ -160,10 +160,8 @@ func Test_median50(t *testing.T) {
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, m.Median())
 
 	for i := 0; i < size; i++ {
-		keys := Keys(m)
-		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
-		t.Logf("REMOVE: %v", keys[0])
-		m.Remove(keys[0], Cmp1)
+		t.Logf("REMOVE: %v", i)
+		m.Remove(i, Cmp1)
 
 		m.Range(func(key int, value int) bool {
 			t.Logf("RANGE: %02d %v", key, value)
