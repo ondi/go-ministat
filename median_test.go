@@ -62,7 +62,7 @@ func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 func Test_median10(t *testing.T) {
 	m := NewMedian[int](10)
 	ts := time.Now()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		m.Add(ts, 10, Cmp1)
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
@@ -81,7 +81,7 @@ func Test_median10(t *testing.T) {
 func Test_median20(t *testing.T) {
 	m := NewMedian[int](10)
 	ts := time.Now()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		m.Add(ts, i, Cmp1)
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
@@ -100,7 +100,7 @@ func Test_median20(t *testing.T) {
 func Test_median30(t *testing.T) {
 	m := NewMedian[int](10)
 	ts := time.Now()
-	for i := 100; i > 0; i-- {
+	for i := 1000; i > 0; i-- {
 		m.Add(ts, i, Cmp1)
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
