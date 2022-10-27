@@ -98,7 +98,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	end := time.Now()
 	diff := end.Sub(start)
-	median, _ := self.median.Add(page, diff, CmpDuration)
+	median, _ := self.median.Add(end, page, diff, CmpDuration)
 	if self.storage.MetricEnd(p, diff, 1, writer.status_code) > 0 {
 		var sb strings.Builder
 		if err = self.views.MinistatDuration(r.Context(), page, diff, median, 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {

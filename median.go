@@ -5,13 +5,15 @@
 package ministat
 
 import (
+	"time"
+
 	"github.com/ondi/go-cache"
 )
 
 type Compare_t[T any] func(a T, b T) int
 
 type Mapped_t[T any] struct {
-	// Ts      time.Time
+	Ts   time.Time
 	Data T
 }
 
@@ -34,14 +36,15 @@ func NewMedian[T any](limit int) (self *Median_t[T]) {
 	return
 }
 
-func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
+func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
+	self.evict()
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
 	var less_before bool
 	it, inserted := self.cc.CreateBack(self.seq, func() Mapped_t[T] {
-		return Mapped_t[T]{Data: data}
+		return Mapped_t[T]{Ts: ts, Data: data}
 	})
 	if inserted {
 		if self.cc.Size() == 1 {
@@ -67,7 +70,11 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 	return
 }
 
-func (self *Median_t[T]) Remove(key int, cmp Compare_t[T]) {
+func (self *Median_t[T]) evict() {
+
+}
+
+func (self *Median_t[T]) debug_remove(key int, cmp Compare_t[T]) {
 	it, ok := self.cc.Find(key)
 	if !ok {
 		return
@@ -153,7 +160,7 @@ func (self *Median_t[T]) Range(f func(key int, value T) bool) {
 	}
 }
 
-func (self *Median_t[T]) DebugLR() (left int, right int, mkey int, mvalue T, size int) {
+func (self *Median_t[T]) debug_state() (left int, right int, mkey int, mvalue T, size int) {
 	left = self.left
 	right = self.right
 	mkey = self.median.Key

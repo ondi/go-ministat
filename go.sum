@@ -36,8 +36,8 @@ github.com/ondi/go-cache v0.0.0-20221026170956-67e4cdab9bf9 h1:uTm5KnZivxt7NA3mP
 github.com/ondi/go-cache v0.0.0-20221026170956-67e4cdab9bf9/go.mod h1:x8J3FOjzA2bQL33EoyKfBfTcbBFZ8U2KZPbAQplNlw8=
 github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6 h1:Rt+KTj5bzEg/rYJEyEkpPhYNNkWSAe9OczFmuWPc8s4=
 github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6/go.mod h1:6kGHTJHkpxi9KFaH5mupvt+MBWGuPvdMjpIxu6l0Pmg=
-github.com/ondi/go-unique v0.0.0-20221014160312-a3bf468774b1 h1:4uyt72UnwHsFPOrdfTvHHXSvvC8F7pJFan032T0bi6Y=
-github.com/ondi/go-unique v0.0.0-20221014160312-a3bf468774b1/go.mod h1:Dbt/mVIqkST/Xj6JM5+ffFrTzkRnpdFVC9F85xeoh1w=
+github.com/ondi/go-unique v0.0.0-20221026184716-951f4d36676d h1:5vnB8P2nvtbwqSzWEPyzV4sy/2bbc2b/1galwD7mbaI=
+github.com/ondi/go-unique v0.0.0-20221026184716-951f4d36676d/go.mod h1:iyrrskdQDAv3OkXBMA510k9JloWMj5e8Q6GOyrVmIyE=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
