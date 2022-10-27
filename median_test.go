@@ -41,8 +41,8 @@ func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
 
 func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 	left, right, mkey, mvalue, size := m.DebugLR()
-	if left+right != size-1 {
-		res = fmt.Sprintf("SIZE: %v + %v != %v - 1", left, right, size)
+	if left < 0 || right < 0 || left+right != size-1 {
+		res = fmt.Sprintf("SIZE: left=%v, right=%v, size=%v", left, right, size)
 		return
 	}
 	count := left
@@ -64,7 +64,6 @@ func Test_median10(t *testing.T) {
 	ts := time.Now()
 	for i := 0; i < 100; i++ {
 		m.Add(ts, 10, Cmp1)
-		t.Logf("VALUES: %v", Values(m))
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
 	}

@@ -5,8 +5,6 @@
 package ministat
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/ondi/go-cache"
@@ -54,7 +52,7 @@ func (self *Median_t[Measure_t]) Add(ts time.Time, measure Measure_t, cmp Compar
 	} else {
 		// определяем из какой половины списка перезаписываемый элемент
 		// чтобы скорректировать число элементов слева и справа от медианы или оставить как есть
-		if cmp(it.Value.Measure, self.median.Value.Measure) <= 0 {
+		if cmp(it.Value.Measure, self.median.Value.Measure) < 0 {
 			less_before = true
 		}
 		if it == self.median {
@@ -72,15 +70,13 @@ func (self *Median_t[Measure_t]) Add(ts time.Time, measure Measure_t, cmp Compar
 }
 
 func (self *Median_t[Measure_t]) move_value(it *cache.Value_t[int, Mapped_t[Measure_t]], cmp Compare_t[Measure_t]) (median_passed bool) {
-	fmt.Sprintf(os.Stderr, "####\n")
 	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if cmp(it.Value.Measure, at.Value.Measure) < 0 {
+		if cmp(it.Value.Measure, at.Value.Measure) <= 0 && it != at {
 			cache.CutList(it)
 			cache.SetPrev(it, at)
 			return
 		}
 		median_passed = median_passed || at == self.median
-		fmt.Sprintf(os.Stderr, "CHECK: (%v,%v) (%v,%v)\n", it.Key, it.Value, at.Key, at.Value)
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
