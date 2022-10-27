@@ -17,6 +17,14 @@ func Cmp1(a, b int) int {
 	return a - b
 }
 
+func Values[Value_t any](m *Median_t[Value_t]) (res []string) {
+	m.Range(func(k int, v Value_t) bool {
+		res = append(res, fmt.Sprintf("(%v,%v)", k, v))
+		return true
+	})
+	return
+}
+
 func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
 	half := m.Size() / 2
 	m.Range(func(k int, v Value_t) bool {
@@ -33,6 +41,10 @@ func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
 
 func DebugLR[Value_t any](m *Median_t[Value_t]) (res string) {
 	left, right, mkey, mvalue, size := m.DebugLR()
+	if left+right != size-1 {
+		res = fmt.Sprintf("SIZE: %v + %v != %v - 1", left, right, size)
+		return
+	}
 	count := left
 	m.Range(func(k int, v Value_t) bool {
 		count--
@@ -52,6 +64,7 @@ func Test_median10(t *testing.T) {
 	ts := time.Now()
 	for i := 0; i < 100; i++ {
 		m.Add(ts, 10, Cmp1)
+		t.Logf("VALUES: %v", Values(m))
 		check := DebugLR(m)
 		assert.Assert(t, len(check) == 0, check)
 	}
