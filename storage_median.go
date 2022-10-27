@@ -6,7 +6,6 @@ package ministat
 
 import (
 	"sync"
-	"time"
 
 	"github.com/ondi/go-unique"
 )
@@ -44,12 +43,12 @@ func NewStorageMedian[Measure_t any](page_limit int, median_limit int) (self *St
 	return
 }
 
-func (self *StorageMedian_t[Measure_t]) Add(name string, ts time.Time, value Measure_t, cmp Compare_t[Measure_t]) (res Measure_t, ok bool) {
+func (self *StorageMedian_t[Measure_t]) Add(name string, value Measure_t, cmp Compare_t[Measure_t]) (res Measure_t, ok bool) {
 	self.mx.Lock()
 	it, ok := self.often.Add(name, func() *CounterMedian_t[Measure_t] {
 		return NewCounterMedian[Measure_t](self.median_limit)
 	})
-	res = it.Median.Add(ts, value, cmp)
+	res = it.Median.Add(value, cmp)
 	self.mx.Unlock()
 	return
 }

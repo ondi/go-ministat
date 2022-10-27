@@ -5,8 +5,6 @@
 package ministat
 
 import (
-	"time"
-
 	"github.com/ondi/go-cache"
 )
 
@@ -36,7 +34,7 @@ func NewMedian[Measure_t any](limit int) (self *Median_t[Measure_t]) {
 	return
 }
 
-func (self *Median_t[Measure_t]) Add(ts time.Time, measure Measure_t, cmp Compare_t[Measure_t]) (res Measure_t) {
+func (self *Median_t[Measure_t]) Add(measure Measure_t, cmp Compare_t[Measure_t]) (res Measure_t) {
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
@@ -67,6 +65,10 @@ func (self *Median_t[Measure_t]) Add(ts time.Time, measure Measure_t, cmp Compar
 	self.set_median(it, median_passed, inserted, less_before)
 	res = self.median.Value.Measure
 	return
+}
+
+func (self *Median_t[Measure_t]) remove(it *cache.Value_t[int, Mapped_t[Measure_t]], cmp Compare_t[Measure_t]) {
+	// нет способа определить из какой половины элемент, кроме полного прохода по списку
 }
 
 func (self *Median_t[Measure_t]) move_value(it *cache.Value_t[int, Mapped_t[Measure_t]], cmp Compare_t[Measure_t]) (median_passed bool) {
