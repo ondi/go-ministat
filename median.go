@@ -53,8 +53,8 @@ func (self *Median_t[T]) Add(data T, cmp Compare_t[T]) (res T) {
 		if cmp(it.Value.Data, self.median.Value.Data) < 0 {
 			less_before = true
 		} else if it == self.median {
-			self.median = self.median.Next()
 			less_before = true
+			self.median = self.median.Next()
 			self.left++
 			self.right--
 		}
