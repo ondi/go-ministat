@@ -6,6 +6,7 @@ package ministat
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 )
 
@@ -34,7 +35,7 @@ func Args(cw CopyWriter, args ...interface{}) {
 			}
 		}
 		switch data := v.(type) {
-		case []uint8:
+		case []uint8, json.RawMessage:
 			n, _ = fmt.Fprintf(cw, "%s", data)
 		default:
 			n, _ = fmt.Fprintf(cw, "%+v", data)
