@@ -74,18 +74,19 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 
 func (self *Median_t[T]) evict(ts time.Time, cmp Compare_t[T]) {
 	var begin int
-	if self.seq >= self.cc.Size() {
-		begin = self.seq - self.cc.Size()
-	} else {
+	var it *cache.Value_t[int, Mapped_t[T]]
+	if self.seq < self.cc.Size() {
 		begin = self.limit - (self.cc.Size() - self.seq)
+	} else {
+		begin = self.seq - self.cc.Size()
 	}
 	for self.cc.Size() > 0 {
 		begin++
 		if begin >= self.limit {
 			begin = 0
 		}
-		it, ok := self.cc.Find(begin)
-		if !ok || ts.Sub(it.Value.Ts) < self.ttl {
+		it, _ = self.cc.Find(begin)
+		if ts.Sub(it.Value.Ts) < self.ttl {
 			return
 		}
 		self.remove(it, cmp)
