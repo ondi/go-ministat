@@ -39,6 +39,9 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func PageName(r *http.Request) (res string) {
+	if len(r.URL.Path) > 255 {
+		return r.URL.Path[:255]
+	}
 	return r.URL.Path
 }
 
