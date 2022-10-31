@@ -70,7 +70,7 @@ func debug_state[Value_t any](m *Median_t[Value_t]) (res string) {
 }
 
 func Test_median10(t *testing.T) {
-	m := NewMedian[int](10)
+	m := NewMedian[int](10, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, 10, Cmp1)
 		check := debug_state(m)
@@ -88,7 +88,7 @@ func Test_median10(t *testing.T) {
 }
 
 func Test_median20(t *testing.T) {
-	m := NewMedian[int](10)
+	m := NewMedian[int](10, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, i, Cmp1)
 		check := debug_state(m)
@@ -106,7 +106,7 @@ func Test_median20(t *testing.T) {
 }
 
 func Test_median30(t *testing.T) {
-	m := NewMedian[int](10)
+	m := NewMedian[int](10, 10*time.Second)
 	for i := 1000; i > 0; i-- {
 		m.Add(ts, i, Cmp1)
 		check := debug_state(m)
@@ -125,7 +125,7 @@ func Test_median30(t *testing.T) {
 
 func Test_median40(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	m := NewMedian[int](21)
+	m := NewMedian[int](21, 10*time.Second)
 	for i := 0; i < 20000; i++ {
 		m.Add(ts, rand.Intn(1000), Cmp1)
 		check := debug_state(m)
@@ -145,7 +145,7 @@ func Test_median40(t *testing.T) {
 func Test_median50(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	size := 21
-	m := NewMedian[int](size)
+	m := NewMedian[int](size, 10*time.Second)
 	for i := 0; i < 20000; i++ {
 		m.Add(ts, rand.Intn(1000), Cmp1)
 		// m.Add(100, Cmp1)
@@ -176,4 +176,21 @@ func Test_median50(t *testing.T) {
 		check := debug_state(m)
 		assert.Assert(t, len(check) == 0, check)
 	}
+}
+
+func Test_median60(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	size := 100
+	m := NewMedian[int](size, 10*time.Second)
+	for i := 0; i < 20000; i++ {
+		m.Add(ts, rand.Intn(1000), Cmp1)
+		ts = ts.Add(500 * time.Millisecond)
+		check := debug_state(m)
+		assert.Assert(t, len(check) == 0, check)
+	}
+
+	m.Range(func(key int, value int) bool {
+		t.Logf("RANGE: %02d %v", key, value)
+		return true
+	})
 }

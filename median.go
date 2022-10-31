@@ -20,15 +20,17 @@ type Mapped_t[T any] struct {
 type Median_t[T any] struct {
 	cc     *cache.Cache_t[int, Mapped_t[T]]
 	median *cache.Value_t[int, Mapped_t[T]]
+	ttl    time.Duration
 	seq    int
 	limit  int
 	left   int
 	right  int
 }
 
-func NewMedian[T any](limit int) (self *Median_t[T]) {
+func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 	self = &Median_t[T]{
 		cc:    cache.New[int, Mapped_t[T]](),
+		ttl:   ttl,
 		limit: limit,
 		right: -1,
 	}
@@ -37,7 +39,7 @@ func NewMedian[T any](limit int) (self *Median_t[T]) {
 }
 
 func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
-	self.evict()
+	self.evict(ts, cmp)
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
@@ -70,16 +72,24 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 	return
 }
 
-func (self *Median_t[T]) evict() {
-
-}
-
-func (self *Median_t[T]) debug_remove(key int, cmp Compare_t[T]) {
-	it, ok := self.cc.Find(key)
-	if !ok {
-		return
+func (self *Median_t[T]) evict(ts time.Time, cmp Compare_t[T]) {
+	var begin int
+	if self.seq >= self.cc.Size() {
+		begin = self.seq - self.cc.Size()
+	} else {
+		begin = self.limit - (self.cc.Size() - self.seq)
 	}
-	self.remove(it, cmp)
+	for self.cc.Size() > 0 {
+		begin++
+		if begin >= self.limit {
+			begin = 0
+		}
+		it, ok := self.cc.Find(begin)
+		if !ok || ts.Sub(it.Value.Ts) < self.ttl {
+			return
+		}
+		self.remove(it, cmp)
+	}
 }
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
@@ -167,4 +177,10 @@ func (self *Median_t[T]) debug_state() (left int, right int, mkey int, mvalue T,
 	mvalue = self.median.Value.Data
 	size = self.cc.Size()
 	return
+}
+
+func (self *Median_t[T]) debug_remove(key int, cmp Compare_t[T]) {
+	if it, ok := self.cc.Find(key); ok {
+		self.remove(it, cmp)
+	}
 }

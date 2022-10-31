@@ -62,7 +62,7 @@ type Middleware_t struct {
 func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
 	return &Middleware_t{
 		storage:   storage,
-		median:    NewStorageMedian[time.Duration](128, 32),
+		median:    NewStorageMedian[time.Duration](128, 32, 10*time.Second),
 		ok:        ok,
 		not_ok:    not_ok,
 		page_name: page_name,

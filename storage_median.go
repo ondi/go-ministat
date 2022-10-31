@@ -16,9 +16,9 @@ type CounterMedian_t[T any] struct {
 	Sampling int64
 }
 
-func NewCounterMedian[T any](limit int) *CounterMedian_t[T] {
+func NewCounterMedian[T any](limit int, ttl time.Duration) *CounterMedian_t[T] {
 	return &CounterMedian_t[T]{
-		Median: NewMedian[T](limit),
+		Median: NewMedian[T](limit, ttl),
 	}
 }
 
@@ -33,12 +33,14 @@ func (self *CounterMedian_t[T]) CounterGet() int64 {
 type StorageMedian_t[T any] struct {
 	mx           sync.Mutex
 	often        *unique.Often_t[*CounterMedian_t[T]]
+	median_ttl   time.Duration
 	median_limit int
 }
 
-func NewStorageMedian[T any](page_limit int, median_limit int) (self *StorageMedian_t[T]) {
+func NewStorageMedian[T any](page_limit int, median_limit int, median_ttl time.Duration) (self *StorageMedian_t[T]) {
 	self = &StorageMedian_t[T]{
 		often:        unique.NewOften(page_limit, self.evict_page),
+		median_ttl:   median_ttl,
 		median_limit: median_limit,
 	}
 	return
@@ -47,7 +49,7 @@ func NewStorageMedian[T any](page_limit int, median_limit int) (self *StorageMed
 func (self *StorageMedian_t[T]) Add(ts time.Time, name string, value T, cmp Compare_t[T]) (res T, ok bool) {
 	self.mx.Lock()
 	it, ok := self.often.Add(name, func() *CounterMedian_t[T] {
-		return NewCounterMedian[T](self.median_limit)
+		return NewCounterMedian[T](self.median_limit, self.median_ttl)
 	})
 	res = it.Median.Add(ts, value, cmp)
 	self.mx.Unlock()
