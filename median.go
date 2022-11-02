@@ -55,13 +55,13 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 	} else {
 		// если перезаписываемый элемент и новый элемент находятся в одной и той же
 		// половине списка от медианы коррекция указалетей left, right не требуется
-		if cmp(it.Value.Data, self.median.Value.Data) < 0 {
-			less_before = true
-		} else if it == self.median {
+		if it == self.median {
 			less_before = true
 			self.median = self.median.Next()
 			self.left++
 			self.right--
+		} else {
+			less_before = cmp(it.Value.Data, self.median.Value.Data) < 0
 		}
 		it.Value.Data = data
 	}
