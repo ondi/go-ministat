@@ -88,24 +88,30 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
+	defer self.deferServeHttp(r.Context(), p, &writer, sampling)
+
 	if sampling == 0 || state != 0 {
 		self.not_ok.ServeHTTP(&writer, r)
 	} else {
 		self.ok.ServeHTTP(&writer, r)
 	}
+}
+
+func (self *Middleware_t) deferServeHttp(ctx context.Context, p Begin_t, writer *ResponseWriter_t, sampling int64) {
+	var err error
 	if sampling > 0 {
-		if err = self.views.MinistatAfter(r.Context(), page); err != nil {
-			self.log(r.Context(), "MINISTAT: %v %q", err, page)
+		if err = self.views.MinistatAfter(ctx, p.Name); err != nil {
+			self.log(ctx, "MINISTAT: %v %q", err, p.Name)
 		}
 	}
 
 	end := time.Now()
-	diff := end.Sub(start)
-	median, _ := self.median.Add(end, page, diff, CmpDuration)
+	diff := end.Sub(p.Start)
+	median, _ := self.median.Add(end, p.Name, diff, CmpDuration)
 	if self.storage.MetricEnd(p, diff, 1, writer.status_code) > 0 {
 		var sb strings.Builder
-		if err = self.views.MinistatDuration(r.Context(), page, diff, median, 1, writer.status_code, self.errors(r.Context(), &sb).String()); err != nil {
-			self.log(r.Context(), "MINISTAT: %v %q", err, page)
+		if err = self.views.MinistatDuration(ctx, p.Name, diff, median, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
+			self.log(ctx, "MINISTAT: %v %q", err, p.Name)
 		}
 	}
 }
