@@ -65,9 +65,23 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 		}
 		it.Value.Data = data
 	}
-	median_passed := cmp(it.Value.Data, self.median.Value.Data) > 0 || it == self.median
+	// median passed
+	if cmp(it.Value.Data, self.median.Value.Data) > 0 || it == self.median {
+		if inserted {
+			self.right++
+		} else if less_before {
+			self.left--
+			self.right++
+		}
+	} else {
+		if inserted {
+			self.left++
+		} else if less_before == false {
+			self.left++
+			self.right--
+		}
+	}
 	self.move_value(it, cmp)
-	self.move_pointers(median_passed, inserted, less_before)
 	self.move_median()
 	res = self.median.Value.Data
 	return
@@ -122,25 +136,6 @@ func (self *Median_t[T]) move_value(it *cache.Value_t[int, Mapped_t[T]], cmp Com
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, self.cc.End())
-	return
-}
-
-func (self *Median_t[T]) move_pointers(median_passed bool, inserted bool, less_before bool) {
-	if median_passed {
-		if inserted {
-			self.right++
-		} else if less_before {
-			self.left--
-			self.right++
-		}
-	} else {
-		if inserted {
-			self.left++
-		} else if less_before == false {
-			self.left++
-			self.right--
-		}
-	}
 }
 
 func (self *Median_t[T]) move_median() {
