@@ -81,7 +81,16 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 			self.right--
 		}
 	}
-	self.move_value(it, cmp)
+	// move value
+	at := self.cc.Front()
+	for ; at != self.cc.End(); at = at.Next() {
+		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
+			break
+		}
+	}
+	cache.CutList(it)
+	cache.SetPrev(it, at)
+
 	self.move_median()
 	res = self.median.Value.Data
 	return
@@ -124,18 +133,6 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare
 		self.right--
 	}
 	self.move_median()
-}
-
-func (self *Median_t[T]) move_value(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
-	for at := self.cc.Front(); at != self.cc.End(); at = at.Next() {
-		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
-			cache.CutList(it)
-			cache.SetPrev(it, at)
-			return
-		}
-	}
-	cache.CutList(it)
-	cache.SetPrev(it, self.cc.End())
 }
 
 func (self *Median_t[T]) move_median() {
