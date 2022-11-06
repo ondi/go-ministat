@@ -17,8 +17,8 @@ type Counter_t struct {
 	state_ts      time.Time
 	state_next_ts time.Time
 	sampling      int64
-	hits          int64
 	online        int64
+	hits          int64
 	processed     int64
 	errors        int64
 	state         int64
@@ -26,12 +26,18 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Hits         int64
 	Online       int64
+	Hits         int64
 	Processed    int64
 	Errors       int64
 	Duration     time.Duration
 	DurationSize int
+}
+
+type Less_t = cache.Less_t[string, *Counter_t]
+
+func CmpDuration(a, b time.Duration) int {
+	return int(a - b)
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -54,8 +60,8 @@ func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) 
 }
 
 type SetState interface {
-	MetricBegin(c *Counter_t, name string, start time.Time, online int64)
-	MetricEnd(c *Counter_t, name string, start time.Time, online int64, duration time.Duration)
+	MetricBegin(counter *Counter_t, name string, start time.Time, online int64)
+	MetricEnd(counter *Counter_t, name string, start time.Time, online int64, duration time.Duration)
 }
 
 type online_limit_t struct {
@@ -67,11 +73,11 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) MetricBegin(c *Counter_t, name string, start time.Time, online int64) {
+func (self *online_limit_t) MetricBegin(counter *Counter_t, name string, start time.Time, online int64) {
 	if online >= self.limit {
-		c.SetState(start, self.duration, 1)
+		counter.SetState(start, self.duration, 1)
 	} else {
-		c.SetState(start, self.duration, 0)
+		counter.SetState(start, self.duration, 0)
 	}
 }
 
@@ -83,12 +89,6 @@ type NoState_t struct{}
 func (NoState_t) MetricBegin(*Counter_t, string, time.Time, int64) {}
 
 func (NoState_t) MetricEnd(*Counter_t, string, time.Time, int64, time.Duration) {}
-
-type Less_t = cache.Less_t[string, *Counter_t]
-
-func CmpDuration(a, b time.Duration) int {
-	return int(a - b)
-}
 
 type Storage_t struct {
 	mx           sync.Mutex
