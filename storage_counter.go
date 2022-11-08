@@ -26,11 +26,12 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Duration  time.Duration
-	Hits      int64
-	Online    int64
-	Processed int64
-	Errors    int64
+	Hits         int64
+	Online       int64
+	Processed    int64
+	Errors       int64
+	Duration     time.Duration
+	DurationSize int
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -146,11 +147,12 @@ func (self *Storage_t) MetricList(order Less_t, f func(name string, result Resul
 		order,
 		func(key string, value *Counter_t) bool {
 			return f(key, Result_t{
-				Duration:  value.median.Median(),
-				Hits:      value.hits,
-				Online:    value.online,
-				Processed: value.processed,
-				Errors:    value.errors,
+				Hits:         value.hits,
+				Online:       value.online,
+				Processed:    value.processed,
+				Errors:       value.errors,
+				Duration:     value.median.Median(),
+				DurationSize: value.median.Size(),
 			})
 		},
 	)
