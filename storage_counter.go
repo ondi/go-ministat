@@ -139,7 +139,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	return
 }
 
-func (self *Storage_t) MetricListRoutes(order Less_t, f func(name string, result Result_t) bool) {
+func (self *Storage_t) MetricList(order Less_t, f func(name string, result Result_t) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	self.pages.RangeSort(
