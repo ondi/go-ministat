@@ -127,13 +127,13 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, diff time.Duration, processed int64, errors int64) (sampling int64, duration time.Duration) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, diff time.Duration, processed int64, errors int64) (sampling int64, duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.online--
 	counter.errors += errors
 	counter.processed += processed
 	sampling = counter.sampling
-	duration = counter.median.Add(start.Add(diff), diff, CmpDuration)
+	duration, size = counter.median.Add(start.Add(diff), diff, CmpDuration)
 	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
 	self.mx.Unlock()
 	return

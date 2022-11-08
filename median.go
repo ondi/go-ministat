@@ -38,7 +38,7 @@ func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 	return
 }
 
-func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T) {
+func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, size int) {
 	self.evict(ts, cmp)
 	self.seq++
 	if self.seq >= self.limit {
@@ -92,6 +92,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T) 
 	}
 	self.move_median()
 	median = self.median.Value.Data
+	size = self.cc.Size()
 	return
 }
 
