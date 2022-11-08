@@ -13,50 +13,48 @@ import (
 )
 
 type Counter_t struct {
-	StateTs     time.Time
-	StateNextTs time.Time
-	DurationMax time.Duration
-	DurationNum time.Duration
-	DurationSum time.Duration
-	Sampling    int64
-	Status200   int64
-	Status400   int64
-	Status500   int64
-	State       int64
-	StateNext   int64
-	Online      int64
-	OnlineMax   int64
-	Processed   int64
+	median        *Median_t[time.Duration]
+	state_ts      time.Time
+	state_next_ts time.Time
+	sampling      int64
+	hits          int64
+	online        int64
+	processed     int64
+	errors        int64
+	state         int64
+	state_next    int64
 }
 
-type Begin_t struct {
-	Start   time.Time
-	counter *Counter_t
-	Name    string
+type Result_t struct {
+	Duration  time.Duration
+	Hits      int64
+	Online    int64
+	Processed int64
+	Errors    int64
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
-	self.Sampling += a
+	self.sampling += a
 }
 
 func (self *Counter_t) CounterGet() int64 {
-	return self.Sampling
+	return self.sampling
 }
 
 func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) {
-	if self.StateNext != in {
-		self.StateNext = in
-		self.StateNextTs = ts
+	if self.state_next != in {
+		self.state_next = in
+		self.state_next_ts = ts
 	}
-	if self.State != in && ts.Sub(self.StateNextTs) >= duration {
-		self.State = in
-		self.StateTs = ts
+	if self.state != in && ts.Sub(self.state_next_ts) >= duration {
+		self.state = in
+		self.state_ts = ts
 	}
 }
 
 type SetState interface {
-	MetricBegin(name string, start time.Time, counter *Counter_t)
-	MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t)
+	MetricBegin(c *Counter_t, name string, start time.Time, online int64)
+	MetricEnd(c *Counter_t, name string, start time.Time, online int64, duration time.Duration)
 }
 
 type online_limit_t struct {
@@ -68,22 +66,22 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) MetricBegin(name string, start time.Time, counter *Counter_t) {
-	if counter.Online >= self.limit {
-		counter.SetState(start, self.duration, 1)
+func (self *online_limit_t) MetricBegin(c *Counter_t, name string, start time.Time, online int64) {
+	if online >= self.limit {
+		c.SetState(start, self.duration, 1)
 	} else {
-		counter.SetState(start, self.duration, 0)
+		c.SetState(start, self.duration, 0)
 	}
 }
 
-func (self *online_limit_t) MetricEnd(name string, start time.Time, diff time.Duration, counter *Counter_t) {
+func (self *online_limit_t) MetricEnd(counter *Counter_t, name string, start time.Time, online int64, duration time.Duration) {
 }
 
 type NoState_t struct{}
 
-func (NoState_t) MetricBegin(string, time.Time, *Counter_t) {}
+func (NoState_t) MetricBegin(*Counter_t, string, time.Time, int64) {}
 
-func (NoState_t) MetricEnd(string, time.Time, time.Duration, *Counter_t) {}
+func (NoState_t) MetricEnd(*Counter_t, string, time.Time, int64, time.Duration) {}
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
@@ -92,118 +90,82 @@ func CmpDuration(a, b time.Duration) int {
 }
 
 type Storage_t struct {
-	mx          sync.Mutex
-	evict       Evict
-	set_state   SetState
-	timeline    *cache.Cache_t[time.Time, *unique.Often_t[*Counter_t]]
-	truncate    time.Duration
-	ts_backlog  int
-	limit_pages int
+	mx           sync.Mutex
+	pages        *unique.Often_t[*Counter_t]
+	set_state    SetState
+	median_limit int
+	median_ttl   time.Duration
 }
 
-func NewStorage(ts_backlog int, limit_pages int, truncate time.Duration, evict Evict, set_state SetState) (self *Storage_t) {
+func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, set_state SetState) (self *Storage_t) {
 	self = &Storage_t{
-		timeline:    cache.New[time.Time, *unique.Often_t[*Counter_t]](),
-		truncate:    truncate,
-		evict:       evict,
-		ts_backlog:  ts_backlog,
-		limit_pages: limit_pages,
-		set_state:   set_state,
+		pages:        unique.NewOften(limit_pages, self.evict_page),
+		set_state:    set_state,
+		median_limit: median_limit,
+		median_ttl:   median_ttl,
 	}
 	return
 }
 
 func (self *Storage_t) evict_page(page string, value *Counter_t) {
-	value.CounterAdd(-value.CounterGet())
-	self.evict.MinistatEvict(page, value.DurationSum, value.DurationNum)
+
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (res Begin_t, sampling int64, state int64) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
 	self.mx.Lock()
-	if self.timeline.Size() > self.ts_backlog {
-		self.timeline.Front().Value.Range(func(page string, value *Counter_t) bool {
-			self.evict_page(page, value)
-			return true
-		})
-		self.timeline.Remove(self.timeline.Front().Key)
-	}
-	it, _ := self.timeline.CreateBack(
-		start.Truncate(self.truncate),
-		func() *unique.Often_t[*Counter_t] {
-			return unique.NewOften(self.limit_pages, self.evict_page)
+	counter, _ = self.pages.Add(name, func() *Counter_t {
+		return &Counter_t{
+			median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
+		}
+	})
+	counter.hits++
+	counter.online++
+	self.set_state.MetricBegin(counter, name, start, counter.online)
+	sampling = counter.sampling
+	state = counter.state
+	self.mx.Unlock()
+	return
+}
+
+func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, diff time.Duration, processed int64, errors int64) (sampling int64, duration time.Duration) {
+	self.mx.Lock()
+	counter.online--
+	counter.errors += errors
+	counter.processed += processed
+	sampling = counter.sampling
+	duration = counter.median.Add(start.Add(diff), diff, CmpDuration)
+	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
+	self.mx.Unlock()
+	return
+}
+
+func (self *Storage_t) MetricListRoutes(order Less_t, f func(name string, result Result_t) bool) {
+	self.mx.Lock()
+	defer self.mx.Unlock()
+	self.pages.RangeSort(
+		order,
+		func(key string, value *Counter_t) bool {
+			return f(key, Result_t{
+				Duration:  value.median.Median(),
+				Hits:      value.hits,
+				Online:    value.online,
+				Processed: value.processed,
+				Errors:    value.errors,
+			})
 		},
 	)
-	res.Name = name
-	res.Start = start
-	res.counter, _ = it.Value.Add(name, func() *Counter_t { return &Counter_t{} })
-	res.counter.Online++
-	res.counter.DurationNum++
-	if res.counter.Online > res.counter.OnlineMax {
-		res.counter.OnlineMax = res.counter.Online
-	}
-	self.set_state.MetricBegin(name, start, res.counter)
-	sampling = res.counter.Sampling
-	state = res.counter.State
-	self.mx.Unlock()
-	return
-}
-
-func (self *Storage_t) MetricEnd(res Begin_t, diff time.Duration, processed int64, status_code int) (sampling int64) {
-	self.mx.Lock()
-	res.counter.Online--
-	res.counter.DurationSum += diff
-	res.counter.Processed += processed
-	if diff > res.counter.DurationMax {
-		res.counter.DurationMax = diff
-	}
-	switch {
-	case status_code < 400:
-		res.counter.Status200++
-	case status_code >= 400 && status_code < 500:
-		res.counter.Status400++
-	case status_code >= 500:
-		res.counter.Status500++
-	}
-	self.set_state.MetricEnd(res.Name, res.Start, diff, res.counter)
-	sampling = res.counter.Sampling
-	self.mx.Unlock()
-	return
-}
-
-func (self *Storage_t) MetricListTs(f func(time.Time) bool) {
-	self.mx.Lock()
-	defer self.mx.Unlock()
-	for it := self.timeline.Back(); it != self.timeline.End(); it = it.Prev() {
-		if !f(it.Key) {
-			return
-		}
-	}
-	return
-}
-
-func (self *Storage_t) MetricListRoutes(ts time.Time, order Less_t, f func(name string, counter Counter_t) bool) {
-	self.mx.Lock()
-	defer self.mx.Unlock()
-	if it, ok := self.timeline.Find(ts); ok {
-		it.Value.RangeSort(
-			order,
-			func(key string, value *Counter_t) bool {
-				return f(key, *value)
-			},
-		)
-	}
 }
 
 func LessHits(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.DurationNum < b.Value.DurationNum
+	return a.Value.hits < b.Value.hits
 }
 
 func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.Processed < b.Value.Processed
+	return a.Value.processed < b.Value.processed
 }
 
 func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.DurationSum/a.Value.DurationNum < b.Value.DurationSum/b.Value.DurationNum
+	return a.Value.median.Median() < b.Value.median.Median()
 }
 
 func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {

@@ -38,7 +38,7 @@ func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 	return
 }
 
-func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
+func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T) {
 	self.evict(ts, cmp)
 	self.seq++
 	if self.seq >= self.limit {
@@ -65,6 +65,15 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 		}
 		it.Value.Data = data
 	}
+	// move value
+	at := self.cc.Front()
+	for ; at != self.cc.End(); at = at.Next() {
+		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
+			break
+		}
+	}
+	cache.CutList(it)
+	cache.SetPrev(it, at)
 	// median passed
 	if cmp(it.Value.Data, self.median.Value.Data) > 0 || it == self.median {
 		if inserted {
@@ -81,18 +90,8 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (res T) {
 			self.right--
 		}
 	}
-	// move value
-	at := self.cc.Front()
-	for ; at != self.cc.End(); at = at.Next() {
-		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
-			break
-		}
-	}
-	cache.CutList(it)
-	cache.SetPrev(it, at)
-
 	self.move_median()
-	res = self.median.Value.Data
+	median = self.median.Value.Data
 	return
 }
 

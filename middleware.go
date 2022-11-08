@@ -51,9 +51,15 @@ func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
 
 func NoLog(ctx context.Context, format string, args ...interface{}) {}
 
+func CountErrors(status_code int) int64 {
+	if status_code >= 400 {
+		return 1
+	}
+	return 0
+}
+
 type Middleware_t struct {
 	storage   *Storage_t
-	median    *StorageMedian_t[time.Duration]
 	ok        http.Handler
 	not_ok    http.Handler
 	page_name PageName_t
@@ -65,7 +71,6 @@ type Middleware_t struct {
 func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
 	return &Middleware_t{
 		storage:   storage,
-		median:    NewStorageMedian[time.Duration](128, 32, 10*time.Second),
 		ok:        ok,
 		not_ok:    not_ok,
 		page_name: page_name,
@@ -80,7 +85,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
-	p, sampling, state := self.storage.MetricBegin(page, start)
+	counter, sampling, state := self.storage.MetricBegin(page, start)
 
 	var err error
 	if sampling > 0 {
@@ -88,7 +93,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
-	defer self.deferServeHttp(r.Context(), p, &writer, sampling)
+	defer self.deferServeHttp(r.Context(), counter, page, start, sampling, &writer)
 
 	if sampling == 0 || state != 0 {
 		self.not_ok.ServeHTTP(&writer, r)
@@ -97,21 +102,20 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (self *Middleware_t) deferServeHttp(ctx context.Context, p Begin_t, writer *ResponseWriter_t, sampling int64) {
+func (self *Middleware_t) deferServeHttp(ctx context.Context, counter *Counter_t, name string, start time.Time, sampling int64, writer *ResponseWriter_t) {
 	var err error
 	if sampling > 0 {
-		if err = self.views.MinistatAfter(ctx, p.Name); err != nil {
-			self.log(ctx, "MINISTAT: %v %q", err, p.Name)
+		if err = self.views.MinistatAfter(ctx, name); err != nil {
+			self.log(ctx, "MINISTAT: %v %q", err, name)
 		}
 	}
 
 	end := time.Now()
-	diff := end.Sub(p.Start)
-	median, _ := self.median.Add(end, p.Name, diff, CmpDuration)
-	if self.storage.MetricEnd(p, diff, 1, writer.status_code) > 0 {
+	diff := end.Sub(start)
+	if sampling, median := self.storage.MetricEnd(counter, name, start, diff, 1, CountErrors(writer.status_code)); sampling > 0 {
 		var sb strings.Builder
-		if err = self.views.MinistatDuration(ctx, p.Name, diff, median, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
-			self.log(ctx, "MINISTAT: %v %q", err, p.Name)
+		if err = self.views.MinistatDuration(ctx, name, median, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
+			self.log(ctx, "MINISTAT: %v %q", err, name)
 		}
 	}
 }

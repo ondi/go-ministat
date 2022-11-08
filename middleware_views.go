@@ -1,8 +1,7 @@
 //
-// RPS = sum(rate(http_request_count{app_name="$app_name"}[1m])) by(page)
-// PENDING = sum(http_pending_sum{app_name="$app_name"}) by (page)
-// LATENCY_OLD = histogram_quantile(0.95, sum(rate(http_latency_hist_bucket{app_name="$app_name"}[1m])) by(page, le))
-// LATENCT_NEW = sum(http_latency_sum{app_name="$app_name"}) by (page)/sum(http_latency_num{app_name="$app_name"}) by (page)
+// RPS = sum(rate(http_request_count{app="$app_name"}[1m])) by(page)
+// PENDING = sum(http_pending_sum{app="$app_name"}) by (page)
+// LATENCY = avg(http_latency_median{app="$app_name"}) by (page)
 //
 
 package ministat
@@ -18,15 +17,10 @@ import (
 	"go.opencensus.io/tag"
 )
 
-type Evict interface {
-	MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error)
-}
-
 type Views interface {
-	Evict
 	MinistatBefore(ctx context.Context, page string) (err error)
 	MinistatAfter(ctx context.Context, page string) (err error)
-	MinistatDuration(ctx context.Context, page string, diff time.Duration, median time.Duration, processed int64, status int, errors string) (err error)
+	MinistatDuration(ctx context.Context, page string, median time.Duration, processed int64, status int, errors string) (err error)
 	List() []*view.View
 }
 
@@ -54,11 +48,7 @@ func (*no_views_t) MinistatAfter(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*no_views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, median time.Duration, processed int64, status int, errors string) (err error) {
-	return
-}
-
-func (*no_views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error) {
+func (*no_views_t) MinistatDuration(ctx context.Context, page string, median time.Duration, processed int64, status int, errors string) (err error) {
 	return
 }
 
@@ -71,8 +61,6 @@ type views_t struct {
 	pageRequest       *stats.Int64Measure
 	pagePayload       *stats.Int64Measure
 	pagePending       *stats.Int64Measure
-	pageLatencySum    *stats.Int64Measure
-	pageLatencyNum    *stats.Int64Measure
 	pageLatencyMedian *stats.Int64Measure
 	views             []*view.View
 }
@@ -82,8 +70,6 @@ func NewViews(prefix string) (Views, error) {
 		pageRequest:       stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
 		pagePayload:       stats.Int64("payload_count", "number of payload processed", stats.UnitDimensionless),
 		pagePending:       stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
-		pageLatencySum:    stats.Int64("latency_sum", "latency numerator", stats.UnitDimensionless),
-		pageLatencyNum:    stats.Int64("latency_num", "latency denominator", stats.UnitDimensionless),
 		pageLatencyMedian: stats.Int64("latency_median", "latency median", stats.UnitDimensionless),
 	}
 	var err error
@@ -119,20 +105,6 @@ func NewViews(prefix string) (Views, error) {
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "latency_sum",
-			Description: "latency numerator",
-			TagKeys:     []tag.Key{self.tagName},
-			Measure:     self.pageLatencySum,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        prefix + "latency_num",
-			Description: "latency denominator",
-			TagKeys:     []tag.Key{self.tagName},
-			Measure:     self.pageLatencyNum,
-			Aggregation: view.Sum(),
-		},
-		{
 			Name:        prefix + "latency_median",
 			Description: "latency median",
 			TagKeys:     []tag.Key{self.tagName},
@@ -152,7 +124,7 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error
 	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, TrimValue(page, &sb).String())); err != nil {
 		return
 	}
-	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1), self.pageLatencyNum.M(1))
+	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1))
 	return
 }
 
@@ -165,7 +137,7 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error)
 	return
 }
 
-func (self *views_t) MinistatDuration(ctx context.Context, page string, diff time.Duration, median time.Duration, processed int64, status int, errors string) (err error) {
+func (self *views_t) MinistatDuration(ctx context.Context, page string, median time.Duration, processed int64, status int, errors string) (err error) {
 	var sb1, sb2 strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagName, TrimValue(page, &sb1).String()),
@@ -175,16 +147,6 @@ func (self *views_t) MinistatDuration(ctx context.Context, page string, diff tim
 	if err != nil {
 		return
 	}
-	stats.Record(ctx, self.pageLatencySum.M(int64(diff)), self.pageLatencyMedian.M(int64(median)), self.pagePayload.M(processed))
-	return
-}
-
-func (self *views_t) MinistatEvict(page string, DurationSum time.Duration, DurationNum time.Duration) (err error) {
-	var sb strings.Builder
-	ctx, err := tag.New(context.Background(), tag.Upsert(self.tagName, TrimValue(page, &sb).String()))
-	if err != nil {
-		return
-	}
-	stats.Record(ctx, self.pageLatencySum.M(-int64(DurationSum)), self.pageLatencyNum.M(-int64(DurationNum)))
+	stats.Record(ctx, self.pageLatencyMedian.M(int64(median)), self.pagePayload.M(processed))
 	return
 }
