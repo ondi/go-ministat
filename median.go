@@ -18,7 +18,7 @@ type Mapped_t[T any] struct {
 }
 
 type Median_t[T any] struct {
-	cc     *cache.Cache_t[int, Mapped_t[T]]
+	cx     *cache.Cache_t[int, Mapped_t[T]]
 	median *cache.Value_t[int, Mapped_t[T]]
 	ttl    time.Duration
 	seq    int
@@ -29,12 +29,12 @@ type Median_t[T any] struct {
 
 func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 	self = &Median_t[T]{
-		cc:    cache.New[int, Mapped_t[T]](),
+		cx:    cache.New[int, Mapped_t[T]](),
 		ttl:   ttl,
 		limit: limit,
 		right: -1,
 	}
-	self.median = self.cc.End()
+	self.median = self.cx.End()
 	return
 }
 
@@ -45,11 +45,11 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 		self.seq = 0
 	}
 	var less_before bool
-	it, inserted := self.cc.CreateBack(self.seq, func() Mapped_t[T] {
+	it, inserted := self.cx.CreateBack(self.seq, func() Mapped_t[T] {
 		return Mapped_t[T]{Ts: ts, Data: data}
 	})
 	if inserted {
-		if self.cc.Size() == 1 {
+		if self.cx.Size() == 1 {
 			self.median = it
 		}
 	} else {
@@ -66,8 +66,8 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 		it.Value.Data = data
 	}
 	// move value
-	at := self.cc.Front()
-	for ; at != self.cc.End(); at = at.Next() {
+	at := self.cx.Front()
+	for ; at != self.cx.End(); at = at.Next() {
 		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
 			break
 		}
@@ -92,24 +92,24 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	}
 	self.move_median()
 	median = self.median.Value.Data
-	size = self.cc.Size()
+	size = self.cx.Size()
 	return
 }
 
 func (self *Median_t[T]) evict(ts time.Time, cmp Compare_t[T]) {
 	var begin int
-	if self.seq < self.cc.Size() {
-		begin = self.limit - (self.cc.Size() - self.seq)
+	if self.seq < self.cx.Size() {
+		begin = self.limit - (self.cx.Size() - self.seq)
 	} else {
-		begin = self.seq - self.cc.Size()
+		begin = self.seq - self.cx.Size()
 	}
 	var it *cache.Value_t[int, Mapped_t[T]]
-	for self.cc.Size() > 0 {
+	for self.cx.Size() > 0 {
 		begin++
 		if begin >= self.limit {
 			begin = 0
 		}
-		it, _ = self.cc.Find(begin)
+		it, _ = self.cx.Find(begin)
 		if ts.Sub(it.Value.Ts) < self.ttl {
 			return
 		}
@@ -119,16 +119,16 @@ func (self *Median_t[T]) evict(ts time.Time, cmp Compare_t[T]) {
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
 	if temp := cmp(it.Value.Data, self.median.Value.Data); temp < 0 {
-		self.cc.Remove(it.Key)
+		self.cx.Remove(it.Key)
 		self.left--
 	} else if temp > 0 {
-		self.cc.Remove(it.Key)
+		self.cx.Remove(it.Key)
 		self.right--
 	} else {
 		if it != self.median {
 			cache.Swap(it, self.median)
 		}
-		self.cc.Remove(it.Key)
+		self.cx.Remove(it.Key)
 		self.median = it.Next()
 		self.right--
 	}
@@ -152,11 +152,11 @@ func (self *Median_t[T]) Median() (res T) {
 }
 
 func (self *Median_t[T]) Size() (res int) {
-	return self.cc.Size()
+	return self.cx.Size()
 }
 
 func (self *Median_t[T]) Range(f func(key int, value T) bool) {
-	for it := self.cc.Front(); it != self.cc.End(); it = it.Next() {
+	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if f(it.Key, it.Value.Data) == false {
 			return
 		}
@@ -168,12 +168,12 @@ func (self *Median_t[T]) debug_state() (left int, right int, mkey int, mvalue T,
 	right = self.right
 	mkey = self.median.Key
 	mvalue = self.median.Value.Data
-	size = self.cc.Size()
+	size = self.cx.Size()
 	return
 }
 
 func (self *Median_t[T]) debug_remove(key int, cmp Compare_t[T]) {
-	if it, ok := self.cc.Find(key); ok {
+	if it, ok := self.cx.Find(key); ok {
 		self.remove(it, cmp)
 	}
 }
