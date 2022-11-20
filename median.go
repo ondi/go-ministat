@@ -147,12 +147,13 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) Median() (res T) {
-	return self.median.Value.Data
-}
-
-func (self *Median_t[T]) Size() (res int) {
-	return self.cx.Size()
+func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int, last time.Time, diff time.Duration) {
+	self.evict(ts, cmp)
+	median = self.median.Value.Data
+	size = self.cx.Size()
+	last = self.cx.Back().Value.Ts
+	diff = last.Sub(self.cx.Front().Value.Ts)
+	return
 }
 
 func (self *Median_t[T]) Range(f func(key int, value T) bool) {

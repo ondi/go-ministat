@@ -35,8 +35,9 @@ func Keys[Value_t any](m *Median_t[Value_t]) (res []int) {
 	return
 }
 
-func RealMedian[Value_t any](m *Median_t[Value_t]) (key int, value Value_t) {
-	half := m.Size() / 2
+func RealMedian[Value_t any](ts time.Time, m *Median_t[Value_t], Cmp Compare_t[Value_t]) (key int, value Value_t) {
+	_, size, _, _ := m.Median(ts, Cmp)
+	half := size / 2
 	m.Range(func(k int, v Value_t) bool {
 		key = k
 		value = v
@@ -82,9 +83,10 @@ func Test_median10(t *testing.T) {
 		return true
 	})
 
-	k, v := RealMedian(m)
+	k, v := RealMedian(ts, m, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
+	median, _, _, _ := m.Median(ts, Cmp1)
+	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median20(t *testing.T) {
@@ -100,9 +102,10 @@ func Test_median20(t *testing.T) {
 		return true
 	})
 
-	k, v := RealMedian(m)
+	k, v := RealMedian(ts, m, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
+	median, _, _, _ := m.Median(ts, Cmp1)
+	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median30(t *testing.T) {
@@ -118,9 +121,10 @@ func Test_median30(t *testing.T) {
 		return true
 	})
 
-	k, v := RealMedian(m)
+	k, v := RealMedian(ts, m, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
+	median, _, _, _ := m.Median(ts, Cmp1)
+	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median40(t *testing.T) {
@@ -137,9 +141,10 @@ func Test_median40(t *testing.T) {
 		return true
 	})
 
-	k, v := RealMedian(m)
+	k, v := RealMedian(ts, m, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	assert.Assert(t, m.Median() == v, fmt.Sprintf("TEST=%v, REAL=%v", m.Median(), v))
+	median, _, _, _ := m.Median(ts, Cmp1)
+	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median50(t *testing.T) {
@@ -158,8 +163,9 @@ func Test_median50(t *testing.T) {
 		return true
 	})
 
-	k, v := RealMedian(m)
-	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, m.Median())
+	k, v := RealMedian(ts, m, Cmp1)
+	median, _, _, _ := m.Median(ts, Cmp1)
+	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, median)
 
 	for i := 0; i < size; i++ {
 		t.Logf("REMOVE: %v", i)

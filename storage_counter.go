@@ -31,6 +31,8 @@ type Result_t struct {
 	Processed    int64
 	Errors       int64
 	Duration     time.Duration
+	DurationDiff time.Duration
+	DurationLast time.Time
 	DurationSize int
 }
 
@@ -140,20 +142,20 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	return
 }
 
-func (self *Storage_t) MetricList(order Less_t, f func(name string, result Result_t) bool) {
+func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string, result Result_t) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
-			return f(key, Result_t{
-				Hits:         value.hits,
-				Online:       value.online,
-				Processed:    value.processed,
-				Errors:       value.errors,
-				Duration:     value.median.Median(),
-				DurationSize: value.median.Size(),
-			})
+			temp := Result_t{
+				Online:    value.online,
+				Hits:      value.hits,
+				Processed: value.processed,
+				Errors:    value.errors,
+			}
+			temp.Duration, temp.DurationSize, temp.DurationLast, temp.DurationDiff = value.median.Median(ts, CmpDuration)
+			return f(key, temp)
 		},
 	)
 }
@@ -167,7 +169,7 @@ func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string
 }
 
 func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Value.median.Median() < b.Value.median.Median()
+	return a.Value.median.median.Value.Data < b.Value.median.median.Value.Data
 }
 
 func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
