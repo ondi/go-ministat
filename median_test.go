@@ -19,26 +19,26 @@ func Cmp1(a, b int) int {
 	return a - b
 }
 
-func KeyValues[Value_t any](m *Median_t[Value_t]) (res []string) {
-	m.Range(func(k int, v Value_t) bool {
+func KeyValues[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []string) {
+	m.Range(ts, cmp, func(k int, v Value_t) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v))
 		return true
 	})
 	return
 }
 
-func Keys[Value_t any](m *Median_t[Value_t]) (res []int) {
-	m.Range(func(k int, v Value_t) bool {
+func Keys[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []int) {
+	m.Range(ts, cmp, func(k int, v Value_t) bool {
 		res = append(res, k)
 		return true
 	})
 	return
 }
 
-func RealMedian[Value_t any](ts time.Time, m *Median_t[Value_t], Cmp Compare_t[Value_t]) (key int, value Value_t) {
-	_, _, size := m.Median(ts, Cmp)
+func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (key int, value Value_t) {
+	_, _, size := m.Median(ts, cmp)
 	half := size / 2
-	m.Range(func(k int, v Value_t) bool {
+	m.Range(ts, cmp, func(k int, v Value_t) bool {
 		key = k
 		value = v
 		half--
@@ -50,20 +50,20 @@ func RealMedian[Value_t any](ts time.Time, m *Median_t[Value_t], Cmp Compare_t[V
 	return
 }
 
-func debug_state[Value_t any](m *Median_t[Value_t]) (res string) {
+func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
 	size, left, right, mkey, mvalue := m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data
 	if size > 0 && (left < 0 || right < 0 || left+right != size-1) {
-		res = fmt.Sprintf("SIZE: left=%v, right=%v, size=%v", left, right, size)
+		res = fmt.Sprintf("SIZE CHECK: size=%v, left=%v, right=%v", size, left, right)
 		return
 	}
 	count := left
-	m.Range(func(k int, v Value_t) bool {
+	m.Range(ts, cmp, func(k int, v Value_t) bool {
 		count--
 		if count >= 0 {
 			return true
 		}
 		if k != mkey {
-			res = fmt.Sprintf("MEDIAN CHECK: left=%v, right=%v, check=(%v,%v), median=(%v,%v), size=%v", left, right, k, v, mkey, mvalue, size)
+			res = fmt.Sprintf("MEDIAN CHECK: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", size, left, right, k, v, mkey, mvalue)
 		}
 		return false
 	})
@@ -74,16 +74,16 @@ func Test_median10(t *testing.T) {
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, 10, Cmp1)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
 
-	k, v := RealMedian(ts, m, Cmp1)
+	k, v := RealMedian(m, ts, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
 	median, _, _ := m.Median(ts, Cmp1)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
@@ -93,16 +93,16 @@ func Test_median20(t *testing.T) {
 	m := NewMedian[int](11, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, i, Cmp1)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
 
-	k, v := RealMedian(ts, m, Cmp1)
+	k, v := RealMedian(m, ts, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
 	median, _, _ := m.Median(ts, Cmp1)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
@@ -112,16 +112,16 @@ func Test_median30(t *testing.T) {
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 1000; i > 0; i-- {
 		m.Add(ts, i, Cmp1)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %v %v", key, value)
 		return true
 	})
 
-	k, v := RealMedian(ts, m, Cmp1)
+	k, v := RealMedian(m, ts, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
 	median, _, _ := m.Median(ts, Cmp1)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
@@ -132,16 +132,16 @@ func Test_median40(t *testing.T) {
 	m := NewMedian[int](21, 10*time.Second)
 	for i := 0; i < 20000; i++ {
 		m.Add(ts, rand.Intn(1000), Cmp1)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %02d %v", key, value)
 		return true
 	})
 
-	k, v := RealMedian(ts, m, Cmp1)
+	k, v := RealMedian(m, ts, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
 	median, _, _ := m.Median(ts, Cmp1)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
@@ -154,16 +154,16 @@ func Test_median50(t *testing.T) {
 	for i := 0; i < 20000; i++ {
 		m.Add(ts, rand.Intn(1000), Cmp1)
 		// m.Add(100, Cmp1)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %02d %v", key, value)
 		return true
 	})
 
-	k, v := RealMedian(ts, m, Cmp1)
+	k, v := RealMedian(m, ts, Cmp1)
 	median, _, _ := m.Median(ts, Cmp1)
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, median)
 
@@ -183,14 +183,14 @@ func Test_median50(t *testing.T) {
 		assert.Assert(t, ok)
 		m.remove(it, Cmp1)
 
-		m.Range(func(key int, value int) bool {
+		m.Range(ts, Cmp1, func(key int, value int) bool {
 			t.Logf("RANGE: %02d %v", key, value)
 			return true
 		})
 
 		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v", m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data)
 
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 }
@@ -202,11 +202,11 @@ func Test_median60(t *testing.T) {
 	for i := 0; i < 20000; i++ {
 		m.Add(ts, rand.Intn(1000), Cmp1)
 		ts = ts.Add(500 * time.Millisecond)
-		check := debug_state(m)
+		check := debug_state(m, ts, Cmp1)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(func(key int, value int) bool {
+	m.Range(ts, Cmp1, func(key int, value int) bool {
 		t.Logf("RANGE: %02d %v", key, value)
 		return true
 	})
