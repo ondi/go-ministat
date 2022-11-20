@@ -91,8 +91,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 		}
 	}
 	self.move_median()
-	median = self.median.Value.Data
-	size = self.cx.Size()
+	median, size = self.median.Value.Data, self.cx.Size()
 	return
 }
 
@@ -147,12 +146,9 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int, last time.Time, diff time.Duration) {
+func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, median_ts time.Time, size int) {
 	self.evict(ts, cmp)
-	median = self.median.Value.Data
-	size = self.cx.Size()
-	last = self.cx.Back().Value.Ts
-	diff = last.Sub(self.cx.Front().Value.Ts)
+	median, median_ts, size = self.median.Value.Data, self.median.Value.Ts, self.cx.Size()
 	return
 }
 

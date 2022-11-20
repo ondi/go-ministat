@@ -31,8 +31,7 @@ type Result_t struct {
 	Processed    int64
 	Errors       int64
 	Duration     time.Duration
-	DurationDiff time.Duration
-	DurationLast time.Time
+	DurationTs   time.Time
 	DurationSize int
 }
 
@@ -154,7 +153,7 @@ func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string
 				Processed: value.processed,
 				Errors:    value.errors,
 			}
-			temp.Duration, temp.DurationSize, temp.DurationLast, temp.DurationDiff = value.median.Median(ts, CmpDuration)
+			temp.Duration, temp.DurationTs, temp.DurationSize = value.median.Median(ts, CmpDuration)
 			return f(key, temp)
 		},
 	)
