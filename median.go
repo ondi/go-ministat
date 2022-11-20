@@ -159,18 +159,3 @@ func (self *Median_t[T]) Range(f func(key int, value T) bool) {
 		}
 	}
 }
-
-func (self *Median_t[T]) debug_state() (left int, right int, mkey int, mvalue T, size int) {
-	left = self.left
-	right = self.right
-	mkey = self.median.Key
-	mvalue = self.median.Value.Data
-	size = self.cx.Size()
-	return
-}
-
-func (self *Median_t[T]) debug_remove(key int, cmp Compare_t[T]) {
-	if it, ok := self.cx.Find(key); ok {
-		self.remove(it, cmp)
-	}
-}

@@ -51,7 +51,7 @@ func RealMedian[Value_t any](ts time.Time, m *Median_t[Value_t], Cmp Compare_t[V
 }
 
 func debug_state[Value_t any](m *Median_t[Value_t]) (res string) {
-	left, right, mkey, mvalue, size := m.debug_state()
+	size, left, right, mkey, mvalue := m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data
 	if size > 0 && (left < 0 || right < 0 || left+right != size-1) {
 		res = fmt.Sprintf("SIZE: left=%v, right=%v, size=%v", left, right, size)
 		return
@@ -90,7 +90,7 @@ func Test_median10(t *testing.T) {
 }
 
 func Test_median20(t *testing.T) {
-	m := NewMedian[int](10, 10*time.Second)
+	m := NewMedian[int](11, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, i, Cmp1)
 		check := debug_state(m)
@@ -168,16 +168,27 @@ func Test_median50(t *testing.T) {
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, median)
 
 	for i := 0; i < size; i++ {
-		t.Logf("REMOVE: %v", i)
-		m.debug_remove(i, Cmp1)
+		var begin int
+		if m.seq < m.cx.Size() {
+			begin = m.limit - (m.cx.Size() - m.seq)
+		} else {
+			begin = m.seq - m.cx.Size()
+		}
+		begin++
+		if begin >= m.limit {
+			begin = 0
+		}
+		t.Logf("REMOVE: %v", begin)
+		it, ok := m.cx.Find(begin)
+		assert.Assert(t, ok)
+		m.remove(it, Cmp1)
 
 		m.Range(func(key int, value int) bool {
 			t.Logf("RANGE: %02d %v", key, value)
 			return true
 		})
 
-		left, right, mkey, mvalue, size := m.debug_state()
-		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v", size, left, right, mkey, mvalue)
+		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v", m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data)
 
 		check := debug_state(m)
 		assert.Assert(t, len(check) == 0, check)
