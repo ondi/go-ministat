@@ -57,7 +57,8 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 		return
 	}
 	count := left
-	m.Range(ts, cmp, func(k int, v Value_t) bool {
+	// do not evict
+	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Value_t) bool {
 		count--
 		if count >= 0 {
 			return true

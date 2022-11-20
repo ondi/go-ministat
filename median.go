@@ -153,7 +153,7 @@ func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, media
 }
 
 func (self *Median_t[T]) Range(ts time.Time, cmp Compare_t[T], f func(key int, value T) bool) {
-	// self.evict(ts, cmp)
+	self.evict(ts, cmp)
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if f(it.Key, it.Value.Data) == false {
 			return
