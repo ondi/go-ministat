@@ -51,11 +51,29 @@ func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[V
 }
 
 func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
+	var prev_set bool
+	var prev_value Value_t
+	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Value_t) bool {
+		if prev_set {
+			if cmp(prev_value, v) > 0 {
+				res = fmt.Sprintf("SORT CHECK: %v %v", prev_value, v)
+				return false
+			}
+		}
+		prev_value = v
+		prev_set = true
+		return true
+	})
+	if len(res) > 0 {
+		return
+	}
+
 	size, left, right, mkey, mvalue := m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data
 	if size > 0 && (left < 0 || right < 0 || left+right != size-1) {
 		res = fmt.Sprintf("SIZE CHECK: size=%v, left=%v, right=%v", size, left, right)
 		return
 	}
+
 	count := left
 	// do not evict
 	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Value_t) bool {
