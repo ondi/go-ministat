@@ -146,9 +146,9 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, median_ts time.Time, size int) {
+func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int) {
 	self.evict(ts, cmp)
-	median, median_ts, size = self.median.Value.Data, self.median.Value.Ts, self.cx.Size()
+	median, size = self.median.Value.Data, self.cx.Size()
 	return
 }
 
