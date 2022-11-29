@@ -51,19 +51,33 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	if inserted {
 		if self.cx.Size() == 1 {
 			self.median = it
+			self.right++
+		} else if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+			self.right++
+		} else {
+			self.left++
 		}
 	} else {
-		// если перезаписываемый элемент и новый элемент находятся в одной и той же
-		// половине списка от медианы коррекция указалетей left, right не требуется
 		if it == self.median {
-			less_before = true
 			self.median = self.median.Next()
 			self.left++
 			self.right--
-		} else {
-			less_before = cmp(it.Value.Data, self.median.Value.Data) < 0
 		}
+		// если перезаписываемый элемент и новый элемент находятся в одной и той же
+		// половине списка от медианы коррекция указалетей left, right не требуется
+		less_before = cmp(it.Value.Data, self.median.Value.Data) < 0
 		it.Value.Data = data
+		if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+			if less_before {
+				self.left--
+				self.right++
+			}
+		} else {
+			if less_before == false {
+				self.left++
+				self.right--
+			}
+		}
 	}
 	// move value
 	at := self.cx.Front()
@@ -74,22 +88,6 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	}
 	cache.CutList(it)
 	cache.SetPrev(it, at)
-	// median passed
-	if cmp(it.Value.Data, self.median.Value.Data) > 0 || it == self.median {
-		if inserted {
-			self.right++
-		} else if less_before {
-			self.left--
-			self.right++
-		}
-	} else {
-		if inserted {
-			self.left++
-		} else if less_before == false {
-			self.left++
-			self.right--
-		}
-	}
 	self.move_median()
 	median, size = self.median.Value.Data, self.cx.Size()
 	return
