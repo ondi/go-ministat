@@ -50,9 +50,10 @@ func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[V
 	return
 }
 
-func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
+func check_sorted[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
 	var prev_set bool
 	var prev_value Value_t
+	// do not evict
 	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Value_t) bool {
 		if prev_set {
 			if cmp(prev_value, v) > 0 {
@@ -64,7 +65,11 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 		prev_set = true
 		return true
 	})
-	if len(res) > 0 {
+	return
+}
+
+func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
+	if res = check_sorted(m, ts, cmp); len(res) > 0 {
 		return
 	}
 
