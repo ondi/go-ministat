@@ -73,7 +73,7 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 		return
 	}
 
-	if m.cx.Size() > 0 && (m.left < 0 || m.right < 0 || m.left+m.right != m.cx.Size()-1) {
+	if m.cx.Size() > 0 && (m.left < 0 || m.right < 0 || m.left+m.right != m.cx.Size()-1 || m.left > m.right+1 || m.right > m.left+1) {
 		res = fmt.Sprintf("SIZE CHECK: size=%v, left=%v, right=%v", m.cx.Size(), m.left, m.right)
 		return
 	}
