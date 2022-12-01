@@ -31,6 +31,7 @@ type Result_t struct {
 	Hits         int64
 	Processed    int64
 	Errors       int64
+	FirstTs      time.Time
 	LastTs       time.Time
 	Duration     time.Duration
 	DurationSize int
@@ -137,7 +138,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	counter.errors += errors
 	counter.processed += processed
 	sampling = counter.sampling
-	duration, size = counter.median.Add(start.Add(diff), diff, CmpDuration)
+	duration, size, _ = counter.median.Add(start.Add(diff), diff, CmpDuration)
 	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
 	self.mx.Unlock()
 	return
@@ -156,7 +157,7 @@ func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string
 				Errors:    value.errors,
 				LastTs:    value.last_ts,
 			}
-			temp.Duration, temp.DurationSize = value.median.Median(ts, CmpDuration)
+			temp.Duration, temp.DurationSize, temp.FirstTs = value.median.Median(ts, CmpDuration)
 			return f(key, temp)
 		},
 	)
