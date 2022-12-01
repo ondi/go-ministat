@@ -73,21 +73,24 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 		return
 	}
 
-	size, left, right, mkey, mvalue := m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data
-	if size > 0 && (left < 0 || right < 0 || left+right != size-1) {
-		res = fmt.Sprintf("SIZE CHECK: size=%v, left=%v, right=%v", size, left, right)
+	if m.cx.Size() > 0 && (m.left < 0 || m.right < 0 || m.left+m.right != m.cx.Size()-1) {
+		res = fmt.Sprintf("SIZE CHECK: size=%v, left=%v, right=%v", m.cx.Size(), m.left, m.right)
 		return
 	}
 
-	count := left
+	count := m.left
 	// do not evict
 	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Value_t) bool {
+		if cmp(v, m.median.Value.Data) > 0 {
+			res = fmt.Sprintf("MEDIAN VALUE: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", m.cx.Size(), m.left, m.right, k, v, m.median.Key, m.median.Value.Data)
+			return false
+		}
 		count--
 		if count >= 0 {
 			return true
 		}
-		if k != mkey {
-			res = fmt.Sprintf("MEDIAN CHECK: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", size, left, right, k, v, mkey, mvalue)
+		if k != m.median.Key {
+			res = fmt.Sprintf("MEDIAN CHECK: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", m.cx.Size(), m.left, m.right, k, v, m.median.Key, m.median.Value.Data)
 		}
 		return false
 	})
