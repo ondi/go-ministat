@@ -63,8 +63,8 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 			self.left++
 			self.right--
 		}
-		// если новое и старое значения элемента остаётся в той же половине списка
-		// от медианы, коррекция указалетей left, right не требуется.
+		// если новое значения элемента остаётся в той же половине списка от медианы,
+		// коррекция указалетей left, right не требуется.
 		less_before = cmp(it.Value.Data, self.median.Value.Data) < 0
 		it.Value.Ts = ts
 		it.Value.Data = data
