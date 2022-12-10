@@ -44,7 +44,6 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
-	var less_before bool
 	it, inserted := self.cx.CreateBack(self.seq, func() Mapped_t[T] {
 		return Mapped_t[T]{Ts: ts, Data: data}
 	})
@@ -63,22 +62,21 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 			self.left++
 			self.right--
 		}
-		// если новое значения элемента остаётся в той же половине списка от медианы,
-		// коррекция указалетей left, right не требуется.
-		less_before = cmp(it.Value.Data, self.median.Value.Data) < 0
-		it.Value.Ts = ts
-		it.Value.Data = data
-		if cmp(it.Value.Data, self.median.Value.Data) > 0 {
-			if less_before {
+		// если новое значения элемента остаётся в той же половине списка,
+		// коррекция указалетей left и right не требуется.
+		if cmp(data, self.median.Value.Data) > 0 {
+			if cmp(it.Value.Data, self.median.Value.Data) < 0 {
 				self.left--
 				self.right++
 			}
 		} else {
-			if less_before == false {
+			if cmp(it.Value.Data, self.median.Value.Data) >= 0 {
 				self.left++
 				self.right--
 			}
 		}
+		it.Value.Ts = ts
+		it.Value.Data = data
 	}
 	// sort value
 	at := self.cx.Front()
