@@ -16,17 +16,19 @@ type SetCtx_t func(ctx context.Context, name string, levels string) context.Cont
 type log_ctx_t struct {
 	Handler http.Handler
 	SetCtx  SetCtx_t
+	Levels  string
 }
 
-func NewLogCtx(next http.Handler, set SetCtx_t) http.Handler {
+func NewLogCtx(next http.Handler, set SetCtx_t, levels string) http.Handler {
 	self := &log_ctx_t{
 		Handler: next,
 		SetCtx:  set,
+		Levels:  levels,
 	}
 	return self
 }
 
 func (self *log_ctx_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r = r.WithContext(self.SetCtx(r.Context(), uuid.New().String(), "ERROR"))
+	r = r.WithContext(self.SetCtx(r.Context(), uuid.New().String(), self.Levels))
 	self.Handler.ServeHTTP(w, r)
 }
