@@ -110,9 +110,7 @@ func (self *Middleware_t) deferServeHttp(ctx context.Context, counter *Counter_t
 		}
 	}
 
-	end := time.Now()
-	diff := end.Sub(start)
-	if sampling, median, size := self.storage.MetricEnd(counter, name, start, diff, 1, CountErrors(writer.status_code)); sampling > 0 {
+	if sampling, median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code)); sampling > 0 {
 		var sb strings.Builder
 		if err = self.views.MinistatDuration(ctx, name, median, size, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
 			self.log(ctx, "MINISTAT: %v %q", err, name)

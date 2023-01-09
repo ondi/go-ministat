@@ -20,7 +20,7 @@ func Cmp1(a, b int) int {
 }
 
 func KeyValues[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []string) {
-	m.Range(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v.Data))
 		return true
 	})
@@ -28,7 +28,7 @@ func KeyValues[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Va
 }
 
 func Keys[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []int) {
-	m.Range(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
 		res = append(res, k)
 		return true
 	})
@@ -38,7 +38,7 @@ func Keys[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t
 func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (key int, value Value_t) {
 	_, size := m.Median(ts, cmp)
 	half := size / 2
-	m.Range(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
 		key = k
 		value = v.Data
 		half--
@@ -54,7 +54,7 @@ func check_sorted[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t
 	var prev_set bool
 	var prev_value Value_t
 	// do not evict
-	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
 		if prev_set {
 			if cmp(prev_value, v.Data) > 0 {
 				res = fmt.Sprintf("SORT CHECK: %v %v", prev_value, v)
@@ -80,7 +80,7 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 
 	count := m.left
 	// do not evict
-	m.Range(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
 		if cmp(v.Data, m.median.Value.Data) > 0 {
 			res = fmt.Sprintf("MEDIAN VALUE: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", m.cx.Size(), m.left, m.right, k, v, m.median.Key, m.median.Value.Data)
 			return false
@@ -105,7 +105,7 @@ func Test_median10(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -124,7 +124,7 @@ func Test_median20(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -143,7 +143,7 @@ func Test_median30(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -163,7 +163,7 @@ func Test_median40(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
@@ -185,7 +185,7 @@ func Test_median50(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
@@ -201,7 +201,7 @@ func Test_median50(t *testing.T) {
 		assert.Assert(t, ok)
 		m.remove(it, Cmp1)
 
-		m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+		m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 			t.Logf("RANGE: %02d %v", key, value.Data)
 			return true
 		})
@@ -228,7 +228,7 @@ func Test_median60(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.Range(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})

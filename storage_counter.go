@@ -17,6 +17,7 @@ type Counter_t struct {
 	last_ts       time.Time
 	state_ts      time.Time
 	state_next_ts time.Time
+	last_median   time.Duration
 	sampling      int64
 	online        int64
 	hits          int64
@@ -123,21 +124,19 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	})
 	counter.hits++
 	counter.online++
-	counter.last_ts = start
 	self.set_state.MetricBegin(counter, name, start, counter.online)
-	sampling = counter.sampling
-	state = counter.state
+	sampling, state = counter.sampling, counter.state
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, diff time.Duration, processed int64, errors int64) (sampling int64, duration time.Duration, size int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, end time.Time, processed int64, errors int64) (sampling int64, duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.online--
 	counter.errors += errors
 	counter.processed += processed
-	sampling = counter.sampling
-	duration, size = counter.median.Add(start.Add(diff), diff, CmpDuration)
+	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
+	counter.last_ts, duration, sampling = end, counter.last_median, counter.sampling
 	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
 	self.mx.Unlock()
 	return
@@ -149,15 +148,15 @@ func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
-			temp := Result_t{
-				Online:    value.online,
-				Hits:      value.hits,
-				Processed: value.processed,
-				Errors:    value.errors,
-				LastTs:    value.last_ts,
-			}
-			temp.Duration, temp.DurationSize = value.median.Median(ts, CmpDuration)
-			return f(key, temp)
+			return f(key, Result_t{
+				Online:       value.online,
+				Hits:         value.hits,
+				Processed:    value.processed,
+				Errors:       value.errors,
+				LastTs:       value.last_ts,
+				Duration:     value.last_median,
+				DurationSize: value.median.Evict(ts, CmpDuration),
+			})
 		},
 	)
 }

@@ -39,7 +39,7 @@ func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 }
 
 func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, size int) {
-	self.evict(ts, cmp)
+	self.Evict(ts, cmp)
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
@@ -92,6 +92,27 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	return
 }
 
+func (self *Median_t[T]) Evict(ts time.Time, cmp Compare_t[T]) int {
+	begin := self.begin()
+	for self.cx.Size() > 0 {
+		it, _ := self.cx.Find(begin)
+		if ts.Sub(it.Value.Ts) < self.ttl {
+			return self.cx.Size()
+		}
+		self.remove(it, cmp)
+		begin++
+		if begin >= self.limit {
+			begin = 0
+		}
+	}
+	return 0
+}
+
+func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int) {
+	size, median = self.Evict(ts, cmp), self.median.Value.Data
+	return
+}
+
 func (self *Median_t[T]) begin() (begin int) {
 	if self.seq < self.cx.Size() {
 		begin = self.limit - (self.cx.Size() - self.seq) + 1
@@ -102,21 +123,6 @@ func (self *Median_t[T]) begin() (begin int) {
 		begin = 0
 	}
 	return
-}
-
-func (self *Median_t[T]) evict(ts time.Time, cmp Compare_t[T]) {
-	begin := self.begin()
-	for self.cx.Size() > 0 {
-		it, _ := self.cx.Find(begin)
-		if ts.Sub(it.Value.Ts) < self.ttl {
-			return
-		}
-		self.remove(it, cmp)
-		begin++
-		if begin >= self.limit {
-			begin = 0
-		}
-	}
 }
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
@@ -149,14 +155,8 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int) {
-	self.evict(ts, cmp)
-	median, size = self.median.Value.Data, self.cx.Size()
-	return
-}
-
-func (self *Median_t[T]) Range(ts time.Time, cmp Compare_t[T], f func(key int, value Mapped_t[T]) bool) {
-	self.evict(ts, cmp)
+func (self *Median_t[T]) range_test(ts time.Time, cmp Compare_t[T], f func(key int, value Mapped_t[T]) bool) {
+	self.Evict(ts, cmp)
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if f(it.Key, it.Value) == false {
 			return
