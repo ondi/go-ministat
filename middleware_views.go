@@ -24,13 +24,13 @@ type Views interface {
 	List() []*view.View
 }
 
-func TrimValue(s string, out *strings.Builder) *strings.Builder {
-	if len(s) > 255 {
-		s = s[:255]
-	}
+func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder {
 	for _, r := range s {
 		if r >= 0x20 && r <= 0x7e {
 			out.WriteRune(r)
+			if out.Len() >= limit {
+				return out
+			}
 		}
 	}
 	return out
@@ -130,7 +130,7 @@ func (self *views_t) List() []*view.View {
 
 func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, TrimValue(page, &sb).String())); err != nil {
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1))
@@ -139,7 +139,7 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error
 
 func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, TrimValue(page, &sb).String())); err != nil {
+	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(-1))
@@ -149,8 +149,8 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error)
 func (self *views_t) MinistatDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var sb1, sb2 strings.Builder
 	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagName, TrimValue(page, &sb1).String()),
-		tag.Upsert(self.tagError, TrimValue(errors, &sb2).String()),
+		tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
+		tag.Upsert(self.tagError, PrintableAscii(errors, &sb2, 255).String()),
 		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
 	)
 	if err != nil {
