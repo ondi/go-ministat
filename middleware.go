@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+type Views interface {
+	HitBefore(ctx context.Context, page string) (err error)
+	HitAfter(ctx context.Context, page string) (err error)
+	HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
+}
+
 type PageName_t func(*http.Request) string
 type LogCtx_t func(ctx context.Context, format string, args ...interface{})
 type GetErr_t func(ctx context.Context, sb *strings.Builder) *strings.Builder

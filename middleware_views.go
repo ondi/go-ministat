@@ -17,12 +17,6 @@ import (
 	"go.opencensus.io/tag"
 )
 
-type Views interface {
-	HitBefore(ctx context.Context, page string) (err error)
-	HitAfter(ctx context.Context, page string) (err error)
-	HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
-}
-
 type OpenCensus interface {
 	OpenCensusViews() []*view.View
 }
