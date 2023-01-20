@@ -38,10 +38,7 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
-func PageName(r *http.Request) (res string) {
-	if len(r.URL.Path) > 255 {
-		return r.URL.Path[:255]
-	}
+func GetPageName(r *http.Request) string {
 	return r.URL.Path
 }
 
@@ -89,7 +86,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	if sampling > 0 {
-		if err = self.views.MinistatBefore(r.Context(), page); err != nil {
+		if err = self.views.HitBefore(r.Context(), page); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
@@ -105,14 +102,14 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (self *Middleware_t) deferServeHttp(ctx context.Context, counter *Counter_t, name string, start time.Time, sampling int64, writer *ResponseWriter_t) {
 	var err error
 	if sampling > 0 {
-		if err = self.views.MinistatAfter(ctx, name); err != nil {
+		if err = self.views.HitAfter(ctx, name); err != nil {
 			self.log(ctx, "MINISTAT: %v %q", err, name)
 		}
 	}
 
 	if sampling, median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code)); sampling > 0 {
 		var sb strings.Builder
-		if err = self.views.MinistatDuration(ctx, name, median, size, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
+		if err = self.views.HitDuration(ctx, name, median, size, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
 			self.log(ctx, "MINISTAT: %v %q", err, name)
 		}
 	}

@@ -18,10 +18,13 @@ import (
 )
 
 type Views interface {
-	MinistatBefore(ctx context.Context, page string) (err error)
-	MinistatAfter(ctx context.Context, page string) (err error)
-	MinistatDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
-	List() []*view.View
+	HitBefore(ctx context.Context, page string) (err error)
+	HitAfter(ctx context.Context, page string) (err error)
+	HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
+}
+
+type OpenCensus interface {
+	OpenCensusViews() []*view.View
 }
 
 func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder {
@@ -40,19 +43,19 @@ type no_views_t struct{}
 
 func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
-func (*no_views_t) MinistatBefore(ctx context.Context, page string) (err error) {
+func (*no_views_t) HitBefore(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*no_views_t) MinistatAfter(ctx context.Context, page string) (err error) {
+func (*no_views_t) HitAfter(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*no_views_t) MinistatDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (*no_views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	return
 }
 
-func (*no_views_t) List() []*view.View { return nil }
+func (*no_views_t) OpenCensusViews() []*view.View { return nil }
 
 type views_t struct {
 	tagName               tag.Key
@@ -124,11 +127,11 @@ func NewViews(prefix string) (Views, error) {
 	return self, err
 }
 
-func (self *views_t) List() []*view.View {
+func (self *views_t) OpenCensusViews() []*view.View {
 	return self.views
 }
 
-func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error) {
+func (self *views_t) HitBefore(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
 	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
 		return
@@ -137,7 +140,7 @@ func (self *views_t) MinistatBefore(ctx context.Context, page string) (err error
 	return
 }
 
-func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error) {
+func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
 	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
 		return
@@ -146,7 +149,7 @@ func (self *views_t) MinistatAfter(ctx context.Context, page string) (err error)
 	return
 }
 
-func (self *views_t) MinistatDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (self *views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var sb1, sb2 strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
