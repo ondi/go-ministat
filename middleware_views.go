@@ -144,19 +144,17 @@ func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
 }
 
 func (self *views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
-	var sb1, sb2 strings.Builder
+	var sb strings.Builder
 	var mutator []tag.Mutator
-	if len(errors) > 0 {
-		mutator = []tag.Mutator{
-			tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
-			tag.Upsert(self.tagError, PrintableAscii(errors, &sb2, 255).String()),
-			tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
-		}
-	} else {
-		mutator = []tag.Mutator{
-			tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
-			tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
-		}
+	if PrintableAscii(page, &sb, 255).Len() > 0 {
+		mutator = append(mutator, tag.Upsert(self.tagName, sb.String()))
+	}
+	sb.Reset()
+	if PrintableAscii(errors, &sb, 255).Len() > 0 {
+		mutator = append(mutator, tag.Upsert(self.tagError, sb.String()))
+	}
+	if status > 0 {
+		mutator = append(mutator, tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)))
 	}
 	if ctx, err = tag.New(ctx, mutator...); err != nil {
 		return
