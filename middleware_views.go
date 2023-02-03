@@ -57,7 +57,7 @@ type views_t struct {
 	tagStatus             tag.Key
 	pageRequest           *stats.Int64Measure
 	pagePending           *stats.Int64Measure
-	pagePayload           *stats.Int64Measure
+	pageStatus            *stats.Int64Measure
 	pageError             *stats.Int64Measure
 	pageLatencyMedian     *stats.Int64Measure
 	pageLatencyMedianSize *stats.Int64Measure
@@ -68,7 +68,7 @@ func NewViews(prefix string) (Views, error) {
 	self := &views_t{
 		pageRequest:           stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
 		pagePending:           stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
-		pagePayload:           stats.Int64("payload_count", "payload by page", stats.UnitDimensionless),
+		pageStatus:            stats.Int64("payload_status", "status by page", stats.UnitDimensionless),
 		pageError:             stats.Int64("payload_error", "error by page", stats.UnitDimensionless),
 		pageLatencyMedian:     stats.Int64("latency_median", "latency median", stats.UnitDimensionless),
 		pageLatencyMedianSize: stats.Int64("latency_median_size", "latency median size", stats.UnitDimensionless),
@@ -99,10 +99,10 @@ func NewViews(prefix string) (Views, error) {
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "payload_count",
+			Name:        prefix + "payload_status",
 			Description: "payload by page",
 			TagKeys:     []tag.Key{self.tagName, self.tagStatus},
-			Measure:     self.pagePayload,
+			Measure:     self.pageStatus,
 			Aggregation: view.Sum(),
 		},
 		{
@@ -163,7 +163,7 @@ func (self *views_t) HitDuration(ctx context.Context, page string, median time.D
 		return
 	}
 	measure := []stats.Measurement{
-		self.pagePayload.M(processed),
+		self.pageStatus.M(processed),
 		self.pageLatencyMedian.M(int64(median)),
 		self.pageLatencyMedianSize.M(int64(median_size)),
 	}
