@@ -145,12 +145,20 @@ func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
 
 func (self *views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var sb1, sb2 strings.Builder
-	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
-		tag.Upsert(self.tagError, PrintableAscii(errors, &sb2, 255).String()),
-		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
-	)
-	if err != nil {
+	var mutator []tag.Mutator
+	if len(errors) > 0 {
+		mutator = []tag.Mutator{
+			tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
+			tag.Upsert(self.tagError, PrintableAscii(errors, &sb2, 255).String()),
+			tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
+		}
+	} else {
+		mutator = []tag.Mutator{
+			tag.Upsert(self.tagName, PrintableAscii(page, &sb1, 255).String()),
+			tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
+		}
+	}
+	if ctx, err = tag.New(ctx, mutator...); err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePayload.M(processed), self.pageLatencyMedian.M(int64(median)), self.pageLatencyMedianSize.M(int64(median_size)))
