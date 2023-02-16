@@ -11,16 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type SetCtx_t func(ctx context.Context, name string, levels string) context.Context
+type SetCtx func(ctx context.Context, name string, levels string) context.Context
 
-type log_ctx_t struct {
+type errors_middleware_t struct {
 	Handler http.Handler
-	SetCtx  SetCtx_t
+	SetCtx  SetCtx
 	Levels  string
 }
 
-func NewLogCtx(next http.Handler, set SetCtx_t, levels string) http.Handler {
-	self := &log_ctx_t{
+func NewErrorsMiddleware(next http.Handler, set SetCtx, levels string) http.Handler {
+	self := &errors_middleware_t{
 		Handler: next,
 		SetCtx:  set,
 		Levels:  levels,
@@ -28,7 +28,7 @@ func NewLogCtx(next http.Handler, set SetCtx_t, levels string) http.Handler {
 	return self
 }
 
-func (self *log_ctx_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (self *errors_middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(self.SetCtx(r.Context(), uuid.New().String(), self.Levels))
 	self.Handler.ServeHTTP(w, r)
 }

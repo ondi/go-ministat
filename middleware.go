@@ -84,19 +84,19 @@ func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, err
 }
 
 func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var err error
 	start := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
 	counter, sampling, state := self.storage.MetricBegin(page, start)
+	defer self.serve_done(r.Context(), counter, page, start, sampling, &writer)
 
-	var err error
 	if sampling > 0 {
 		if err = self.views.HitBefore(r.Context(), page); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
-	defer self.deferServeHttp(r.Context(), counter, page, start, sampling, &writer)
 
 	if sampling == 0 || state != 0 {
 		self.not_ok.ServeHTTP(&writer, r)
@@ -105,7 +105,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (self *Middleware_t) deferServeHttp(ctx context.Context, counter *Counter_t, name string, start time.Time, sampling int64, writer *ResponseWriter_t) {
+func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, name string, start time.Time, sampling int64, writer *ResponseWriter_t) {
 	var err error
 	if sampling > 0 {
 		if err = self.views.HitAfter(ctx, name); err != nil {
