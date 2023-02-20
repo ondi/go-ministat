@@ -6,11 +6,11 @@ package ministat
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"net"
 	"net/http"
-	"strings"
 
 	"github.com/ondi/go-tst"
 )
@@ -84,7 +84,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
-		var sb strings.Builder
+		var sb bytes.Buffer
 		self.errors(r.Context(), &sb)
 		self.log(r.Context(), "%v RESPONSE: %d resp='%s', req='%s', errors=%s",
 			r.URL.String(), writer.status_code, TrimRight(&writer), TrimRight(&reader), sb.String())

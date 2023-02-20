@@ -5,6 +5,7 @@
 package ministat
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"strings"
@@ -19,7 +20,7 @@ type Views interface {
 
 type PageName_t func(*http.Request) string
 type LogCtx_t func(ctx context.Context, format string, args ...interface{})
-type GetErr_t func(ctx context.Context, sb *strings.Builder) *strings.Builder
+type GetErr_t func(ctx context.Context, sb *bytes.Buffer)
 
 type _429_t struct {
 	log  LogCtx_t
@@ -114,8 +115,9 @@ func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, na
 	}
 
 	if sampling, median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code)); sampling > 0 {
-		var sb strings.Builder
-		if err = self.views.HitDuration(ctx, name, median, size, 1, writer.status_code, self.errors(ctx, &sb).String()); err != nil {
+		var sb bytes.Buffer
+		self.errors(ctx, &sb)
+		if err = self.views.HitDuration(ctx, name, median, size, 1, writer.status_code, sb.String()); err != nil {
 			self.log(ctx, "MINISTAT: %v %q", err, name)
 		}
 	}
