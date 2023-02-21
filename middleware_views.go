@@ -52,7 +52,7 @@ func (*no_views_t) HitDuration(ctx context.Context, page string, median time.Dur
 func (*no_views_t) OpenCensusViews() []*view.View { return nil }
 
 type views_t struct {
-	tagName               tag.Key
+	tagPage               tag.Key
 	tagError              tag.Key
 	tagStatus             tag.Key
 	pageRequest           *stats.Int64Measure
@@ -66,15 +66,15 @@ type views_t struct {
 
 func NewViews(prefix string) (Views, error) {
 	self := &views_t{
-		pageRequest:           stats.Int64("request_count", "number of requests", stats.UnitDimensionless),
-		pagePending:           stats.Int64("pending_sum", "number of pending requests", stats.UnitDimensionless),
-		pageStatus:            stats.Int64("payload_status", "status by page", stats.UnitDimensionless),
-		pageError:             stats.Int64("payload_error", "error by page", stats.UnitDimensionless),
-		pageLatencyMedian:     stats.Int64("latency_median", "latency median", stats.UnitDimensionless),
-		pageLatencyMedianSize: stats.Int64("latency_median_size", "latency median size", stats.UnitDimensionless),
+		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
+		pagePending:           stats.Int64(prefix+"pending_sum", "number of pending requests", stats.UnitDimensionless),
+		pageStatus:            stats.Int64(prefix+"payload_status", "status by page", stats.UnitDimensionless),
+		pageError:             stats.Int64(prefix+"payload_error", "error by page", stats.UnitDimensionless),
+		pageLatencyMedian:     stats.Int64(prefix+"latency_median", "latency median", stats.UnitDimensionless),
+		pageLatencyMedianSize: stats.Int64(prefix+"latency_median_size", "latency median size", stats.UnitDimensionless),
 	}
 	var err error
-	if self.tagName, err = tag.NewKey("page"); err != nil {
+	if self.tagPage, err = tag.NewKey("page"); err != nil {
 		return nil, err
 	}
 	if self.tagError, err = tag.NewKey("error"); err != nil {
@@ -87,42 +87,42 @@ func NewViews(prefix string) (Views, error) {
 		{
 			Name:        prefix + "request_count",
 			Description: "number of requests",
-			TagKeys:     []tag.Key{self.tagName},
+			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageRequest,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "pending_sum",
 			Description: "number of pending requests",
-			TagKeys:     []tag.Key{self.tagName},
+			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pagePending,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "payload_status",
 			Description: "payload by page",
-			TagKeys:     []tag.Key{self.tagName, self.tagStatus},
+			TagKeys:     []tag.Key{self.tagPage, self.tagStatus},
 			Measure:     self.pageStatus,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "payload_error",
 			Description: "error by page",
-			TagKeys:     []tag.Key{self.tagName, self.tagError},
+			TagKeys:     []tag.Key{self.tagPage, self.tagError},
 			Measure:     self.pageError,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        prefix + "latency_median",
 			Description: "latency median",
-			TagKeys:     []tag.Key{self.tagName},
+			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageLatencyMedian,
 			Aggregation: view.LastValue(),
 		},
 		{
 			Name:        prefix + "latency_median_size",
 			Description: "latency median size",
-			TagKeys:     []tag.Key{self.tagName},
+			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageLatencyMedianSize,
 			Aggregation: view.LastValue(),
 		},
@@ -136,7 +136,10 @@ func (self *views_t) OpenCensusViews() []*view.View {
 
 func (self *views_t) HitBefore(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
+	ctx, err = tag.New(ctx,
+		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),
+	)
+	if err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1))
@@ -145,7 +148,10 @@ func (self *views_t) HitBefore(ctx context.Context, page string) (err error) {
 
 func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
-	if ctx, err = tag.New(ctx, tag.Upsert(self.tagName, PrintableAscii(page, &sb, 255).String())); err != nil {
+	ctx, err = tag.New(ctx,
+		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),
+	)
+	if err != nil {
 		return
 	}
 	stats.Record(ctx, self.pagePending.M(-1))
@@ -155,7 +161,7 @@ func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
 func (self *views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var name, errs strings.Builder
 	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagName, PrintableAscii(page, &name, 255).String()),
+		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
 		tag.Upsert(self.tagError, PrintableAscii(errors, &errs, 255).String()),
 		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
 	)
