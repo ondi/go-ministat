@@ -34,23 +34,23 @@ func (self *ResponseWriter_t) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 type Writer_t struct {
 	ResponseWriter_t
-	CopyWriter_t
+	Copy_t
 }
 
 func (self *Writer_t) Write(p []byte) (n int, err error) {
 	n, err = self.ResponseWriter_t.Write(p)
-	self.CopyWriter_t.Write(p[:n])
+	self.Copy_t.Write(p[:n])
 	return
 }
 
 type Reader_t struct {
 	io.ReadCloser
-	CopyWriter_t
+	Copy_t
 }
 
 func (self *Reader_t) Read(p []byte) (n int, err error) {
 	n, err = self.ReadCloser.Read(p)
-	self.CopyWriter_t.Write(p[:n])
+	self.Copy_t.Write(p[:n])
 	return
 }
 
@@ -75,9 +75,9 @@ func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse
 }
 
 func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	reader := Reader_t{ReadCloser: r.Body}
+	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, Copy_t: Copy_t{Limit: 1024}}
+	reader := Reader_t{ReadCloser: r.Body, Copy_t: Copy_t{Limit: 1024}}
 	r.Body = &reader
-	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}}
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
 		self.log(r.Context(), "REQUEST: %v", r.URL.String())
@@ -87,6 +87,6 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		var sb bytes.Buffer
 		self.errors(r.Context(), &sb)
 		self.log(r.Context(), "%v RESPONSE: %d resp='%s', req='%s', errors=%s",
-			r.URL.String(), writer.status_code, TrimRight(&writer), TrimRight(&reader), sb.String())
+			r.URL.String(), writer.status_code, writer.TrimRight(TRIM), reader.TrimRight(TRIM), sb.String())
 	}
 }

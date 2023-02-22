@@ -5,9 +5,11 @@
 package ministat
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 var TRIM = map[byte]bool{
@@ -17,17 +19,11 @@ var TRIM = map[byte]bool{
 	'\v': true,
 }
 
-type CopyWriter interface {
-	Write(p []byte) (n int, err error)
-	Bytes() []byte
-	Truncate(n int)
-}
-
-func Args(cw CopyWriter, args ...interface{}) {
+func Args(out io.Writer, args ...interface{}) {
 	var n int
 	for i, v := range args {
 		if i > 0 {
-			fmt.Fprintf(cw, ",")
+			fmt.Fprintf(out, ",")
 		}
 		if temp, _ := v.(interface{ Value() (driver.Value, error) }); temp != nil {
 			if value, err := temp.Value(); err == nil {
@@ -36,9 +32,9 @@ func Args(cw CopyWriter, args ...interface{}) {
 		}
 		switch data := v.(type) {
 		case []uint8, json.RawMessage:
-			n, _ = fmt.Fprintf(cw, "%s", data)
+			n, _ = fmt.Fprintf(out, "%s", data)
 		default:
-			n, _ = fmt.Fprintf(cw, "%+v", data)
+			n, _ = fmt.Fprintf(out, "%+v", data)
 		}
 		if n == 0 {
 			return
@@ -46,52 +42,42 @@ func Args(cw CopyWriter, args ...interface{}) {
 	}
 }
 
-func TrimRight(cw CopyWriter) []byte {
-	written := len(cw.Bytes())
-	for written > 0 {
-		if TRIM[cw.Bytes()[written-1]] {
-			written--
+type Copy_t struct {
+	Buf   bytes.Buffer
+	Limit int
+}
+
+func (self *Copy_t) Write(p []byte) (n int, err error) {
+	if n = self.Limit - self.Buf.Len(); n > len(p) {
+		n, err = self.Buf.Write(p)
+	} else {
+		n, err = self.Buf.Write(p[:n])
+	}
+	return
+}
+
+func (self *Copy_t) TrimRight(tr map[byte]bool) []byte {
+	pos := self.Buf.Len()
+	for pos > 0 {
+		if tr[self.Buf.Bytes()[pos-1]] {
+			pos--
 		} else {
 			break
 		}
 	}
-	return cw.Bytes()[:written]
+	return self.Buf.Bytes()[:pos]
 }
 
-type CopyWriter_t struct {
-	buf     [1024]byte
-	written int
-}
+type NoCopy_t struct{}
 
-func (self *CopyWriter_t) Write(p []byte) (n int, err error) {
-	if n = len(self.buf) - self.written; n > len(p) {
-		_ = append(self.buf[:self.written], p...)
-		self.written += len(p)
-	} else {
-		_ = append(self.buf[:self.written], p[:n]...)
-		self.written += n
-	}
+func (NoCopy_t) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (self *CopyWriter_t) Bytes() []byte {
-	return self.buf[:self.written]
-}
-
-func (self *CopyWriter_t) Truncate(n int) {
-	self.written = n
-}
-
-type NoCopyWriter_t struct{}
-
-func (NoCopyWriter_t) Write(p []byte) (n int, err error) {
+func (NoCopy_t) Bytes() (res []byte) {
 	return
 }
 
-func (NoCopyWriter_t) Bytes() (res []byte) {
-	return
-}
-
-func (NoCopyWriter_t) Truncate(n int) {
+func (NoCopy_t) Truncate(n int) {
 	return
 }
