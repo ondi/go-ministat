@@ -7,6 +7,7 @@ package ministat
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ type Views interface {
 
 type PageName_t func(*http.Request) string
 type LogCtx_t func(ctx context.Context, format string, args ...interface{})
-type GetErr_t func(ctx context.Context, sb *bytes.Buffer)
+type GetErr_t func(ctx context.Context, out io.Writer)
 
 type _429_t struct {
 	log  LogCtx_t
