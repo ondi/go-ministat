@@ -117,8 +117,8 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
 	self.mx.Lock()
-	counter, _ = self.pages.Add(name, func() *Counter_t {
-		return &Counter_t{
+	counter, _ = self.pages.Add(name, func(p **Counter_t) {
+		*p = &Counter_t{
 			median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
 		}
 	})
