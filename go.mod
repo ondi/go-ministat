@@ -1,12 +1,12 @@
 module github.com/ondi/go-ministat
 
-go 1.18
+go 1.20
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/ondi/go-cache v0.0.0-20230322100319-5f3878d58ef3
+	github.com/ondi/go-cache v0.0.0-20230323112532-7ecd710c8376
 	github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6
-	github.com/ondi/go-unique v0.0.0-20230322105918-5dcf1939f173
+	github.com/ondi/go-unique v0.0.0-20230323113800-9ee88d003c34
 	go.opencensus.io v0.24.0
 	gotest.tools v2.2.0+incompatible
 )

@@ -44,10 +44,14 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (median T, 
 	if self.seq >= self.limit {
 		self.seq = 0
 	}
-	it, inserted := self.cx.CreateBack(self.seq, func(p *Mapped_t[T]) {
-		p.Ts = ts
-		p.Data = data
-	})
+	it, inserted := self.cx.CreateBack(
+		self.seq,
+		func(p *Mapped_t[T]) {
+			p.Ts = ts
+			p.Data = data
+		},
+		func(p *Mapped_t[T]) {},
+	)
 	if inserted {
 		if self.cx.Size() == 1 {
 			self.median = it
