@@ -51,12 +51,12 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
-func (self *Counter_t) SetState(ts time.Time, duration time.Duration, in int64) {
+func (self *Counter_t) SetState(ts time.Time, delay time.Duration, in int64) {
 	if self.state_next != in {
 		self.state_next = in
 		self.state_next_ts = ts
 	}
-	if self.state != in && ts.Sub(self.state_next_ts) >= duration {
+	if self.state != in && ts.Sub(self.state_next_ts) >= delay {
 		self.state = in
 		self.state_ts = ts
 	}
