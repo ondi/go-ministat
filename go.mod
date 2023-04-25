@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/google/uuid v1.3.0
-	github.com/ondi/go-cache v0.0.0-20230425092407-339b6a02b517
+	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
 	github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6
 	github.com/ondi/go-unique v0.0.0-20230425093355-3402d8503c6c
 	go.opencensus.io v0.24.0
