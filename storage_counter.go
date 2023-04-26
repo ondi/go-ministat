@@ -14,7 +14,7 @@ import (
 
 type Counter_t struct {
 	median        *Median_t[time.Duration]
-	last_ts       time.Time
+	first_ts      time.Time
 	state_ts      time.Time
 	state_next_ts time.Time
 	last_median   time.Duration
@@ -32,7 +32,7 @@ type Result_t struct {
 	Hits         int64
 	Processed    int64
 	Errors       int64
-	LastTs       time.Time
+	FirstTs      time.Time
 	Duration     time.Duration
 	DurationSize int
 }
@@ -125,7 +125,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	counter.hits++
 	counter.online++
 	self.set_state.MetricBegin(counter, name, start, counter.online)
-	sampling, state = counter.sampling, counter.state
+	counter.first_ts, sampling, state = start, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
 }
@@ -136,7 +136,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	counter.errors += errors
 	counter.processed += processed
 	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
-	counter.last_ts, duration, sampling = end, counter.last_median, counter.sampling
+	duration, sampling = counter.last_median, counter.sampling
 	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
 	self.mx.Unlock()
 	return
@@ -153,7 +153,7 @@ func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string
 				Hits:         value.hits,
 				Processed:    value.processed,
 				Errors:       value.errors,
-				LastTs:       value.last_ts,
+				FirstTs:      value.first_ts,
 				Duration:     value.last_median,
 				DurationSize: value.median.Evict(ts, CmpDuration),
 			})
