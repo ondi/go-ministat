@@ -117,11 +117,14 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
 	self.mx.Lock()
-	counter, _ = self.pages.Add(name, func(p **Counter_t) {
-		*p = &Counter_t{
-			median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
-		}
-	})
+	counter, _ = self.pages.Add(
+		name,
+		func(p **Counter_t) {
+			*p = &Counter_t{
+				median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
+			}
+		},
+	)
 	counter.hits++
 	counter.online++
 	self.set_state.MetricBegin(counter, name, start, counter.online)
@@ -142,21 +145,23 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	return
 }
 
-func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string, result Result_t) bool) {
+func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bool) {
+	self.mx.Lock()
+	res, ok := self.pages.Get(name)
+	if ok {
+		out = counter_to_result(res, ts)
+	}
+	self.mx.Unlock()
+	return
+}
+
+func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
-			return f(key, Result_t{
-				Online:       value.online,
-				Hits:         value.hits,
-				Processed:    value.processed,
-				Errors:       value.errors,
-				FirstTs:      value.first_ts,
-				Duration:     value.last_median,
-				DurationSize: value.median.Evict(ts, CmpDuration),
-			})
+			return f(key, counter_to_result(value, ts))
 		},
 	)
 }
@@ -175,4 +180,16 @@ func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string,
 
 func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
 	return a.Key < b.Key
+}
+
+func counter_to_result(in *Counter_t, ts time.Time) Result_t {
+	return Result_t{
+		Online:       in.online,
+		Hits:         in.hits,
+		Processed:    in.processed,
+		Errors:       in.errors,
+		FirstTs:      in.first_ts,
+		Duration:     in.last_median,
+		DurationSize: in.median.Evict(ts, CmpDuration),
+	}
 }
