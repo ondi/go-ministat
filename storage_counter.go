@@ -14,9 +14,9 @@ import (
 
 type Counter_t struct {
 	median        *Median_t[time.Duration]
-	last_ts_begin time.Time
 	state_ts      time.Time
 	state_next_ts time.Time
+	begin_last_ts time.Time
 	last_median   time.Duration
 	sampling      int64
 	online        int64
@@ -32,7 +32,7 @@ type Result_t struct {
 	Hits         int64
 	Processed    int64
 	Errors       int64
-	LastTsBegin  time.Time
+	BeginLastTs  time.Time
 	Duration     time.Duration
 	DurationSize int
 }
@@ -128,7 +128,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	counter.hits++
 	counter.online++
 	self.set_state.MetricBegin(counter, name, start, counter.online)
-	counter.last_ts_begin, sampling, state = start, counter.sampling, counter.state
+	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
 }
@@ -188,7 +188,7 @@ func counter_to_result(in *Counter_t, ts time.Time) Result_t {
 		Hits:         in.hits,
 		Processed:    in.processed,
 		Errors:       in.errors,
-		LastTsBegin:  in.last_ts_begin,
+		BeginLastTs:  in.begin_last_ts,
 		Duration:     in.last_median,
 		DurationSize: in.median.Evict(ts, CmpDuration),
 	}
