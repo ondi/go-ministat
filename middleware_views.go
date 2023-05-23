@@ -37,11 +37,11 @@ type no_views_t struct{}
 
 func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
 
-func (*no_views_t) HitBefore(ctx context.Context, page string) (err error) {
+func (*no_views_t) HitBegin(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*no_views_t) HitAfter(ctx context.Context, page string) (err error) {
+func (*no_views_t) HitEnd(ctx context.Context, page string) (err error) {
 	return
 }
 
@@ -134,7 +134,7 @@ func (self *views_t) OpenCensusViews() []*view.View {
 	return self.views
 }
 
-func (self *views_t) HitBefore(ctx context.Context, page string) (err error) {
+func (self *views_t) HitBegin(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),
@@ -146,7 +146,7 @@ func (self *views_t) HitBefore(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (self *views_t) HitAfter(ctx context.Context, page string) (err error) {
+func (self *views_t) HitEnd(ctx context.Context, page string) (err error) {
 	var sb strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),

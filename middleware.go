@@ -14,8 +14,8 @@ import (
 )
 
 type Views interface {
-	HitBefore(ctx context.Context, page string) (err error)
-	HitAfter(ctx context.Context, page string) (err error)
+	HitBegin(ctx context.Context, page string) (err error)
+	HitEnd(ctx context.Context, page string) (err error)
 	HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
 }
 
@@ -92,10 +92,9 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 
 	counter, sampling, state := self.storage.MetricBegin(page, start)
-	defer self.serve_done(r.Context(), counter, page, start, sampling, &writer)
-
 	if sampling > 0 {
-		if err = self.views.HitBefore(r.Context(), page); err != nil {
+		defer self.serve_done(r.Context(), counter, page, start, &writer)
+		if err = self.views.HitBegin(r.Context(), page); err != nil {
 			self.log(r.Context(), "MINISTAT: %v %q", err, page)
 		}
 	}
@@ -107,12 +106,10 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, name string, start time.Time, sampling int64, writer *ResponseWriter_t) {
-	var err error
-	if sampling > 0 {
-		if err = self.views.HitAfter(ctx, name); err != nil {
-			self.log(ctx, "MINISTAT: %v %q", err, name)
-		}
+func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, name string, start time.Time, writer *ResponseWriter_t) {
+	err := self.views.HitEnd(ctx, name)
+	if err != nil {
+		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}
 
 	if sampling, median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code)); sampling > 0 {
