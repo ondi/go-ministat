@@ -21,36 +21,6 @@ type OpenCensus interface {
 	OpenCensusViews() []*view.View
 }
 
-func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder {
-	for _, r := range s {
-		if r >= 0x20 && r <= 0x7e {
-			out.WriteRune(r)
-			if out.Len() >= limit {
-				return out
-			}
-		}
-	}
-	return out
-}
-
-type no_views_t struct{}
-
-func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
-
-func (*no_views_t) HitBegin(ctx context.Context, page string) (err error) {
-	return
-}
-
-func (*no_views_t) HitEnd(ctx context.Context, page string) (err error) {
-	return
-}
-
-func (*no_views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
-	return
-}
-
-func (*no_views_t) OpenCensusViews() []*view.View { return nil }
-
 type views_t struct {
 	tagPage               tag.Key
 	tagError              tag.Key
@@ -142,23 +112,11 @@ func (self *views_t) HitBegin(ctx context.Context, page string) (err error) {
 	if err != nil {
 		return
 	}
-	stats.Record(ctx, self.pagePending.M(1), self.pageRequest.M(1))
+	stats.Record(ctx, self.pageRequest.M(1), self.pagePending.M(1))
 	return
 }
 
-func (self *views_t) HitEnd(ctx context.Context, page string) (err error) {
-	var sb strings.Builder
-	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),
-	)
-	if err != nil {
-		return
-	}
-	stats.Record(ctx, self.pagePending.M(-1))
-	return
-}
-
-func (self *views_t) HitDuration(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (self *views_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var name, errs strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
@@ -169,6 +127,7 @@ func (self *views_t) HitDuration(ctx context.Context, page string, median time.D
 		return
 	}
 	measure := []stats.Measurement{
+		self.pagePending.M(-1),
 		self.pageStatus.M(processed),
 		self.pageLatencyMedian.M(int64(median)),
 		self.pageLatencyMedianSize.M(int64(median_size)),
@@ -178,4 +137,32 @@ func (self *views_t) HitDuration(ctx context.Context, page string, median time.D
 	}
 	stats.Record(ctx, measure...)
 	return
+}
+
+func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder {
+	for _, r := range s {
+		if r >= 0x20 && r <= 0x7e {
+			out.WriteRune(r)
+			if out.Len() >= limit {
+				return out
+			}
+		}
+	}
+	return out
+}
+
+type no_views_t struct{}
+
+func NewNoViews(prefix string) (Views, error) { return &no_views_t{}, nil }
+
+func (*no_views_t) HitBegin(ctx context.Context, page string) (err error) {
+	return
+}
+
+func (*no_views_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+	return
+}
+
+func (*no_views_t) OpenCensusViews() []*view.View {
+	return nil
 }
