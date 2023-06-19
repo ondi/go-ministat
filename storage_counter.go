@@ -62,9 +62,8 @@ func (self *Counter_t) SetState(ts time.Time, delay time.Duration, in int64) {
 	}
 }
 
-type SetState interface {
-	MetricBegin(counter *Counter_t, name string, start time.Time, online int64)
-	MetricEnd(counter *Counter_t, name string, start time.Time, online int64, duration time.Duration)
+type StateSetter interface {
+	SetState(counter *Counter_t, ts time.Time, online int64)
 }
 
 type online_limit_t struct {
@@ -76,32 +75,27 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) MetricBegin(counter *Counter_t, name string, start time.Time, online int64) {
+func (self *online_limit_t) SetState(counter *Counter_t, ts time.Time, online int64) {
 	if online >= self.limit {
-		counter.SetState(start, self.duration, 1)
+		counter.SetState(ts, self.duration, 1)
 	} else {
-		counter.SetState(start, self.duration, 0)
+		counter.SetState(ts, self.duration, 0)
 	}
-}
-
-func (self *online_limit_t) MetricEnd(counter *Counter_t, name string, start time.Time, online int64, duration time.Duration) {
 }
 
 type NoState_t struct{}
 
-func (NoState_t) MetricBegin(*Counter_t, string, time.Time, int64) {}
-
-func (NoState_t) MetricEnd(*Counter_t, string, time.Time, int64, time.Duration) {}
+func (NoState_t) SetState(*Counter_t, time.Time, int64) {}
 
 type Storage_t struct {
 	mx           sync.Mutex
 	pages        *unique.Often_t[*Counter_t]
-	set_state    SetState
+	set_state    StateSetter
 	median_limit int
 	median_ttl   time.Duration
 }
 
-func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, set_state SetState) (self *Storage_t) {
+func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, set_state StateSetter) (self *Storage_t) {
 	self = &Storage_t{
 		pages:        unique.NewOften(limit_pages, self.evict_page),
 		set_state:    set_state,
@@ -127,7 +121,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	)
 	counter.hits++
 	counter.online++
-	self.set_state.MetricBegin(counter, name, start, counter.online)
+	self.set_state.SetState(counter, start, counter.online)
 	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
@@ -140,7 +134,6 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Tim
 	counter.processed += processed
 	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
 	duration, sampling = counter.last_median, counter.sampling
-	self.set_state.MetricEnd(counter, name, start, counter.online, duration)
 	self.mx.Unlock()
 	return
 }
