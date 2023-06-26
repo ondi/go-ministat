@@ -42,6 +42,18 @@ func Args(out io.Writer, args ...interface{}) {
 	}
 }
 
+func TrimRight(in []byte, tr map[byte]bool) []byte {
+	pos := len(in)
+	for pos > 0 {
+		if tr[in[pos-1]] {
+			pos--
+		} else {
+			break
+		}
+	}
+	return in[:pos]
+}
+
 type Copy_t struct {
 	Buf   bytes.Buffer
 	Limit int
@@ -56,28 +68,8 @@ func (self *Copy_t) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (self *Copy_t) TrimRight(tr map[byte]bool) []byte {
-	pos := self.Buf.Len()
-	for pos > 0 {
-		if tr[self.Buf.Bytes()[pos-1]] {
-			pos--
-		} else {
-			break
-		}
-	}
-	return self.Buf.Bytes()[:pos]
-}
-
 type NoCopy_t struct{}
 
 func (NoCopy_t) Write(p []byte) (n int, err error) {
-	return
-}
-
-func (NoCopy_t) Bytes() (res []byte) {
-	return
-}
-
-func (NoCopy_t) Truncate(n int) {
 	return
 }
