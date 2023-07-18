@@ -109,7 +109,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, state int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -122,18 +122,18 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	counter.hits++
 	counter.online++
 	self.set_state.SetState(counter, start, counter.online)
-	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
+	counter.begin_last_ts, state = start, counter.state
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, end time.Time, processed int64, errors int64) (sampling int64, duration time.Duration, size int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.online--
 	counter.errors += errors
 	counter.processed += processed
 	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
-	duration, sampling = counter.last_median, counter.sampling
+	duration = counter.last_median
 	self.mx.Unlock()
 	return
 }
@@ -150,23 +150,23 @@ func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bo
 
 func (self *Storage_t) MetricListSort(order Less_t, ts time.Time, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
-	defer self.mx.Unlock()
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
 			return f(key, to_result(value, ts))
 		},
 	)
+	self.mx.Unlock()
 }
 
 func (self *Storage_t) MetricList(ts time.Time, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
-	defer self.mx.Unlock()
 	self.pages.Range(
 		func(key string, value *Counter_t) bool {
 			return f(key, to_result(value, ts))
 		},
 	)
+	self.mx.Unlock()
 }
 
 func LessHits(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
