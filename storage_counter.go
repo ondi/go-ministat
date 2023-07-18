@@ -142,19 +142,29 @@ func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bo
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {
-		out = counter_to_result(res, ts)
+		out = to_result(res, ts)
 	}
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricList(ts time.Time, order Less_t, f func(name string, res Result_t) bool) {
+func (self *Storage_t) MetricListSort(order Less_t, ts time.Time, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
 	defer self.mx.Unlock()
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
-			return f(key, counter_to_result(value, ts))
+			return f(key, to_result(value, ts))
+		},
+	)
+}
+
+func (self *Storage_t) MetricList(ts time.Time, f func(name string, res Result_t) bool) {
+	self.mx.Lock()
+	defer self.mx.Unlock()
+	self.pages.Range(
+		func(key string, value *Counter_t) bool {
+			return f(key, to_result(value, ts))
 		},
 	)
 }
@@ -175,7 +185,7 @@ func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Co
 	return a.Key < b.Key
 }
 
-func counter_to_result(in *Counter_t, ts time.Time) Result_t {
+func to_result(in *Counter_t, ts time.Time) Result_t {
 	return Result_t{
 		Online:       in.online,
 		Hits:         in.hits,
