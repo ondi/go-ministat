@@ -19,8 +19,8 @@ type Counter_t struct {
 	begin_last_ts time.Time
 	last_median   time.Duration
 	sampling      int64
-	online        int64
 	hits          int64
+	pending       int64
 	processed     int64
 	errors        int64
 	state         int64
@@ -28,8 +28,8 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Online       int64
 	Hits         int64
+	Pending      int64
 	Processed    int64
 	Errors       int64
 	BeginLastTs  time.Time
@@ -51,19 +51,19 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
-func (self *Counter_t) SetState(ts time.Time, delay time.Duration, in int64) {
-	if self.state_next != in {
-		self.state_next = in
+func (self *Counter_t) SetState(ts time.Time, delay time.Duration, state int64) {
+	if self.state_next != state {
+		self.state_next = state
 		self.state_next_ts = ts
 	}
-	if self.state != in && ts.Sub(self.state_next_ts) >= delay {
-		self.state = in
+	if self.state != state && ts.Sub(self.state_next_ts) >= delay {
+		self.state = state
 		self.state_ts = ts
 	}
 }
 
 type StateSetter interface {
-	SetState(counter *Counter_t, ts time.Time, online int64)
+	SetState(counter *Counter_t, ts time.Time, pending int64)
 }
 
 type online_limit_t struct {
@@ -75,8 +75,8 @@ func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
 	return &online_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) SetState(counter *Counter_t, ts time.Time, online int64) {
-	if online >= self.limit {
+func (self *online_limit_t) SetState(counter *Counter_t, ts time.Time, pending int64) {
+	if pending >= self.limit {
 		counter.SetState(ts, self.duration, 1)
 	} else {
 		counter.SetState(ts, self.duration, 0)
@@ -120,8 +120,8 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 		},
 	)
 	counter.hits++
-	counter.online++
-	self.set_state.SetState(counter, start, counter.online)
+	counter.pending++
+	self.set_state.SetState(counter, start, counter.pending)
 	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
@@ -129,7 +129,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 
 func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
 	self.mx.Lock()
-	counter.online--
+	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
 	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
@@ -187,8 +187,8 @@ func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Co
 
 func to_result(in *Counter_t, ts time.Time) Result_t {
 	return Result_t{
-		Online:       in.online,
 		Hits:         in.hits,
+		Pending:      in.pending,
 		Processed:    in.processed,
 		Errors:       in.errors,
 		BeginLastTs:  in.begin_last_ts,
