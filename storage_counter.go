@@ -109,7 +109,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, state int64) {
+func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -122,7 +122,7 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	counter.hits++
 	counter.online++
 	self.set_state.SetState(counter, start, counter.online)
-	counter.begin_last_ts, state = start, counter.state
+	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
 }

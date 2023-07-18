@@ -88,13 +88,13 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, state := self.storage.MetricBegin(page, ts)
+	counter, sampling, state := self.storage.MetricBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
 	err := self.views.HitBegin(r.Context(), page)
 	if err != nil {
 		self.log(r.Context(), "MINISTAT: %v %q", err, page)
 	}
-	if state == 0 {
+	if sampling > 0 && state == 0 {
 		self.ok.ServeHTTP(&writer, r)
 	} else {
 		self.not_ok.ServeHTTP(&writer, r)
