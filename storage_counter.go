@@ -148,7 +148,7 @@ func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bo
 	return
 }
 
-func (self *Storage_t) MetricListSort(order Less_t, ts time.Time, f func(name string, res Result_t) bool) {
+func (self *Storage_t) RangeSort(order Less_t, ts time.Time, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.RangeSort(
 		order,
@@ -159,7 +159,7 @@ func (self *Storage_t) MetricListSort(order Less_t, ts time.Time, f func(name st
 	self.mx.Unlock()
 }
 
-func (self *Storage_t) MetricList(ts time.Time, f func(name string, res Result_t) bool) {
+func (self *Storage_t) Range(ts time.Time, f func(name string, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.Range(
 		func(key string, value *Counter_t) bool {

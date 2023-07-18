@@ -27,7 +27,7 @@ type views_t struct {
 	tagStatus             tag.Key
 	pageRequest           *stats.Int64Measure
 	pagePending           *stats.Int64Measure
-	pageStatus            *stats.Int64Measure
+	pageProcessed         *stats.Int64Measure
 	pageError             *stats.Int64Measure
 	pageLatencyMedian     *stats.Int64Measure
 	pageLatencyMedianSize *stats.Int64Measure
@@ -38,7 +38,7 @@ func NewViews(prefix string) (Views, error) {
 	self := &views_t{
 		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
 		pagePending:           stats.Int64(prefix+"pending_sum", "number of pending requests", stats.UnitDimensionless),
-		pageStatus:            stats.Int64(prefix+"payload_status", "status by page", stats.UnitDimensionless),
+		pageProcessed:         stats.Int64(prefix+"payload_processed", "processed by page", stats.UnitDimensionless),
 		pageError:             stats.Int64(prefix+"payload_error", "error by page", stats.UnitDimensionless),
 		pageLatencyMedian:     stats.Int64(prefix+"latency_median", "latency median", stats.UnitDimensionless),
 		pageLatencyMedianSize: stats.Int64(prefix+"latency_median_size", "latency median size", stats.UnitDimensionless),
@@ -69,10 +69,10 @@ func NewViews(prefix string) (Views, error) {
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "payload_status",
-			Description: "payload by page",
+			Name:        prefix + "payload_processed",
+			Description: "processed by page",
 			TagKeys:     []tag.Key{self.tagPage, self.tagStatus},
-			Measure:     self.pageStatus,
+			Measure:     self.pageProcessed,
 			Aggregation: view.Sum(),
 		},
 		{
@@ -105,9 +105,9 @@ func (self *views_t) OpenCensusViews() []*view.View {
 }
 
 func (self *views_t) HitBegin(ctx context.Context, page string) (err error) {
-	var sb strings.Builder
+	var name strings.Builder
 	ctx, err = tag.New(ctx,
-		tag.Upsert(self.tagPage, PrintableAscii(page, &sb, 255).String()),
+		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
 	)
 	if err != nil {
 		return
@@ -128,7 +128,7 @@ func (self *views_t) HitEnd(ctx context.Context, page string, median time.Durati
 	}
 	measure := []stats.Measurement{
 		self.pagePending.M(-1),
-		self.pageStatus.M(processed),
+		self.pageProcessed.M(processed),
 		self.pageLatencyMedian.M(int64(median)),
 		self.pageLatencyMedianSize.M(int64(median_size)),
 	}
