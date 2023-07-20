@@ -14,7 +14,6 @@ import (
 
 type Counter_t struct {
 	median        *Median_t[time.Duration]
-	state_ts      time.Time
 	state_next_ts time.Time
 	begin_last_ts time.Time
 	last_median   time.Duration
@@ -58,7 +57,6 @@ func (self *Counter_t) SetState(ts time.Time, delay time.Duration, state int64) 
 	}
 	if self.state != state && ts.Sub(self.state_next_ts) >= delay {
 		self.state = state
-		self.state_ts = ts
 	}
 }
 
