@@ -60,20 +60,20 @@ func (self *Counter_t) SetState(ts time.Time, delay time.Duration, state int64) 
 	}
 }
 
-type StateSetter interface {
-	SetState(counter *Counter_t, ts time.Time, pending int64)
+type PendingLimiter interface {
+	PendingLimit(counter *Counter_t, ts time.Time, pending int64)
 }
 
-type online_limit_t struct {
+type pending_limit_t struct {
 	limit    int64
 	duration time.Duration
 }
 
-func NewOnlineLimit(limit int64, duration time.Duration) *online_limit_t {
-	return &online_limit_t{limit: limit, duration: duration}
+func NewPendingLimit(limit int64, duration time.Duration) *pending_limit_t {
+	return &pending_limit_t{limit: limit, duration: duration}
 }
 
-func (self *online_limit_t) SetState(counter *Counter_t, ts time.Time, pending int64) {
+func (self *pending_limit_t) PendingLimit(counter *Counter_t, ts time.Time, pending int64) {
 	if pending >= self.limit {
 		counter.SetState(ts, self.duration, 1)
 	} else {
@@ -81,24 +81,24 @@ func (self *online_limit_t) SetState(counter *Counter_t, ts time.Time, pending i
 	}
 }
 
-type NoState_t struct{}
+type NoLimit_t struct{}
 
-func (NoState_t) SetState(*Counter_t, time.Time, int64) {}
+func (NoLimit_t) PendingLimit(*Counter_t, time.Time, int64) {}
 
 type Storage_t struct {
-	mx           sync.Mutex
-	pages        *unique.Often_t[*Counter_t]
-	set_state    StateSetter
-	median_limit int
-	median_ttl   time.Duration
+	mx            sync.Mutex
+	pages         *unique.Often_t[*Counter_t]
+	median_ttl    time.Duration
+	median_limit  int
+	pending_limit PendingLimiter
 }
 
-func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, set_state StateSetter) (self *Storage_t) {
+func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, pending_limit PendingLimiter) (self *Storage_t) {
 	self = &Storage_t{
-		pages:        unique.NewOften(limit_pages, self.evict_page),
-		set_state:    set_state,
-		median_limit: median_limit,
-		median_ttl:   median_ttl,
+		pages:         unique.NewOften(limit_pages, self.evict_page),
+		median_ttl:    median_ttl,
+		median_limit:  median_limit,
+		pending_limit: pending_limit,
 	}
 	return
 }
@@ -107,7 +107,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 }
 
-func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Counter_t, sampling int64, state int64) {
+func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, state int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -119,18 +119,18 @@ func (self *Storage_t) MetricBegin(name string, start time.Time) (counter *Count
 	)
 	counter.hits++
 	counter.pending++
-	self.set_state.SetState(counter, start, counter.pending)
-	counter.begin_last_ts, sampling, state = start, counter.sampling, counter.state
+	self.pending_limit.PendingLimit(counter, begin, counter.pending)
+	counter.begin_last_ts, sampling, state = begin, counter.sampling, counter.state
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, name string, start time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
+func (self *Storage_t) MetricEnd(counter *Counter_t, name string, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
-	counter.last_median, size = counter.median.Add(end, end.Sub(start), CmpDuration)
+	counter.last_median, size = counter.median.Add(end, end.Sub(begin), CmpDuration)
 	duration = counter.last_median
 	self.mx.Unlock()
 	return
