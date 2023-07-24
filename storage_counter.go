@@ -14,7 +14,6 @@ import (
 
 type Counter_t struct {
 	median        *Median_t[time.Duration]
-	state_next_ts time.Time
 	begin_last_ts time.Time
 	last_median   time.Duration
 	sampling      int64
@@ -22,8 +21,6 @@ type Counter_t struct {
 	pending       int64
 	processed     int64
 	errors        int64
-	state         int64
-	state_next    int64
 }
 
 type Result_t struct {
@@ -50,55 +47,18 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
-func (self *Counter_t) SetState(ts time.Time, delay time.Duration, state int64) {
-	if self.state_next != state {
-		self.state_next = state
-		self.state_next_ts = ts
-	}
-	if self.state != state && ts.Sub(self.state_next_ts) >= delay {
-		self.state = state
-	}
-}
-
-type PendingLimiter interface {
-	PendingLimit(counter *Counter_t, ts time.Time, pending int64)
-}
-
-type pending_limit_t struct {
-	limit    int64
-	duration time.Duration
-}
-
-func NewPendingLimit(limit int64, duration time.Duration) *pending_limit_t {
-	return &pending_limit_t{limit: limit, duration: duration}
-}
-
-func (self *pending_limit_t) PendingLimit(counter *Counter_t, ts time.Time, pending int64) {
-	if pending >= self.limit {
-		counter.SetState(ts, self.duration, 1)
-	} else {
-		counter.SetState(ts, self.duration, 0)
-	}
-}
-
-type NoLimit_t struct{}
-
-func (NoLimit_t) PendingLimit(*Counter_t, time.Time, int64) {}
-
 type Storage_t struct {
-	mx            sync.Mutex
-	pages         *unique.Often_t[*Counter_t]
-	median_ttl    time.Duration
-	median_limit  int
-	pending_limit PendingLimiter
+	mx           sync.Mutex
+	pages        *unique.Often_t[*Counter_t]
+	median_ttl   time.Duration
+	median_limit int
 }
 
-func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, pending_limit PendingLimiter) (self *Storage_t) {
+func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration) (self *Storage_t) {
 	self = &Storage_t{
-		pages:         unique.NewOften(limit_pages, self.evict_page),
-		median_ttl:    median_ttl,
-		median_limit:  median_limit,
-		pending_limit: pending_limit,
+		pages:        unique.NewOften(limit_pages, self.evict_page),
+		median_ttl:   median_ttl,
+		median_limit: median_limit,
 	}
 	return
 }
@@ -107,7 +67,7 @@ func (self *Storage_t) evict_page(page string, value *Counter_t) {
 
 }
 
-func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, state int64) {
+func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -119,8 +79,7 @@ func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Count
 	)
 	counter.hits++
 	counter.pending++
-	self.pending_limit.PendingLimit(counter, begin, counter.pending)
-	counter.begin_last_ts, sampling, state = begin, counter.sampling, counter.state
+	counter.begin_last_ts, sampling, pending = begin, counter.sampling, counter.pending
 	self.mx.Unlock()
 	return
 }

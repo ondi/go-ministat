@@ -63,24 +63,26 @@ func CountErrors(status_code int) int64 {
 }
 
 type Middleware_t struct {
-	storage   *Storage_t
-	ok        http.Handler
-	not_ok    http.Handler
-	page_name PageName_t
-	log       LogCtx_t
-	errors    GetErr_t
-	views     Views
+	storage       *Storage_t
+	ok            http.Handler
+	not_ok        http.Handler
+	page_name     PageName_t
+	log           LogCtx_t
+	errors        GetErr_t
+	views         Views
+	pending_limit int64
 }
 
-func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t) *Middleware_t {
+func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t, pending_limit int64) *Middleware_t {
 	return &Middleware_t{
-		storage:   storage,
-		ok:        ok,
-		not_ok:    not_ok,
-		page_name: page_name,
-		log:       log,
-		errors:    errors,
-		views:     views,
+		storage:       storage,
+		ok:            ok,
+		not_ok:        not_ok,
+		page_name:     page_name,
+		pending_limit: pending_limit,
+		log:           log,
+		errors:        errors,
+		views:         views,
 	}
 }
 
@@ -88,13 +90,13 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, sampling, state := self.storage.MetricBegin(page, ts)
+	counter, sampling, pending := self.storage.MetricBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
 	err := self.views.HitBegin(r.Context(), page)
 	if err != nil {
 		self.log(r.Context(), "MINISTAT: %v %q", err, page)
 	}
-	if sampling > 0 && state == 0 {
+	if sampling > 0 && pending <= self.pending_limit {
 		self.ok.ServeHTTP(&writer, r)
 	} else {
 		self.not_ok.ServeHTTP(&writer, r)
