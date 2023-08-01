@@ -67,7 +67,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 			self.left++
 			self.right--
 		}
-		// если новое значения элемента остаётся в той же половине списка,
+		// если перезаписываемое значения элемента остаётся в той же половине списка,
 		// коррекция указалетей left и right не требуется.
 		if cmp(data, self.median.Value.Data) > 0 {
 			if cmp(it.Value.Data, self.median.Value.Data) < 0 {
@@ -118,13 +118,8 @@ func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size 
 }
 
 func (self *Median_t[T]) begin() (begin int) {
-	if self.seq < self.cx.Size() {
-		begin = self.limit - (self.cx.Size() - self.seq) + 1
-	} else {
-		begin = self.seq - self.cx.Size() + 1
-	}
-	if begin >= self.limit {
-		begin = 0
+	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
+		begin += self.limit
 	}
 	return
 }
