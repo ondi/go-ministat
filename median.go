@@ -67,7 +67,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 			self.left++
 			self.right--
 		}
-		// если перезаписываемое значения элемента остаётся в той же половине списка,
+		// если перезаписываемое значения остаётся в той же половине списка,
 		// коррекция указалетей left и right не требуется.
 		if cmp(data, self.median.Value.Data) > 0 {
 			if cmp(it.Value.Data, self.median.Value.Data) < 0 {
@@ -83,17 +83,39 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 		it.Value.Ts = ts
 		it.Value.Data = data
 	}
-	// sort value
-	at := self.cx.Front()
-	for ; at != self.cx.End(); at = at.Next() {
-		if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
-			break
+	// insert value into sorted list
+	at := self.median
+	if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+		for ; at != self.cx.End(); at = at.Next() {
+			if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
+				break
+			}
 		}
+		cache.CutList(it)
+		cache.SetPrev(it, at)
+	} else {
+		for ; at != self.cx.End(); at = at.Prev() {
+			if cmp(it.Value.Data, at.Value.Data) > 0 && it != at {
+				break
+			}
+		}
+		cache.CutList(it)
+		cache.SetNext(it, at)
 	}
-	cache.CutList(it)
-	cache.SetPrev(it, at)
 	self.move_median()
 	return self.median.Value.Data, self.cx.Size()
+}
+
+func (self *Median_t[T]) move_median() {
+	if self.right < self.left-1 {
+		self.median = self.median.Prev()
+		self.left--
+		self.right++
+	} else if self.left < self.right-1 {
+		self.median = self.median.Next()
+		self.left++
+		self.right--
+	}
 }
 
 func (self *Median_t[T]) Evict(ts time.Time, cmp Compare_t[T]) int {
@@ -140,18 +162,6 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare
 		self.right--
 	}
 	self.move_median()
-}
-
-func (self *Median_t[T]) move_median() {
-	if self.right < self.left-1 {
-		self.median = self.median.Prev()
-		self.left--
-		self.right++
-	} else if self.left < self.right-1 {
-		self.median = self.median.Next()
-		self.left++
-		self.right--
-	}
 }
 
 func (self *Median_t[T]) range_test(ts time.Time, cmp Compare_t[T], f func(key int, value Mapped_t[T]) bool) {
