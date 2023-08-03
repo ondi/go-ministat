@@ -15,30 +15,26 @@ import (
 
 var ts = time.Now()
 
-func Cmp1(a, b int) int {
-	return a - b
-}
-
-func KeyValues[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []string) {
-	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+func KeyValues[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []string) {
+	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v.Data))
 		return true
 	})
 	return
 }
 
-func Keys[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res []int) {
-	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+func Keys[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []int) {
+	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
 		res = append(res, k)
 		return true
 	})
 	return
 }
 
-func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (key int, value Value_t) {
-	_, size := m.Median(ts, cmp)
+func RealMedian[Value_t Number](m *Median_t[Value_t], ts time.Time) (key int, value Value_t) {
+	_, size := m.Median(ts)
 	half := size / 2
-	m.range_test(ts, cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
 		key = k
 		value = v.Data
 		half--
@@ -50,13 +46,13 @@ func RealMedian[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[V
 	return
 }
 
-func check_sorted[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
+func check_sorted[Value_t Number](m *Median_t[Value_t], ts time.Time) (res string) {
 	var prev_set bool
 	var prev_value Value_t
 	// do not evict
-	m.range_test(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts.Add(-time.Hour), func(k int, v Mapped_t[Value_t]) bool {
 		if prev_set {
-			if cmp(prev_value, v.Data) > 0 {
+			if prev_value > v.Data {
 				res = fmt.Sprintf("SORT CHECK: %v %v", prev_value, v)
 				return false
 			}
@@ -68,8 +64,8 @@ func check_sorted[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t
 	return
 }
 
-func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[Value_t]) (res string) {
-	if res = check_sorted(m, ts, cmp); len(res) > 0 {
+func debug_state[Value_t Number](m *Median_t[Value_t], ts time.Time) (res string) {
+	if res = check_sorted(m, ts); len(res) > 0 {
 		return
 	}
 
@@ -80,8 +76,8 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 
 	count := m.left
 	// do not evict
-	m.range_test(ts.Add(-time.Hour), cmp, func(k int, v Mapped_t[Value_t]) bool {
-		if cmp(v.Data, m.median.Value.Data) > 0 {
+	m.range_test(ts.Add(-time.Hour), func(k int, v Mapped_t[Value_t]) bool {
+		if v.Data > m.median.Value.Data {
 			res = fmt.Sprintf("MEDIAN VALUE: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", m.cx.Size(), m.left, m.right, k, v, m.median.Key, m.median.Value.Data)
 			return false
 		}
@@ -100,57 +96,57 @@ func debug_state[Value_t any](m *Median_t[Value_t], ts time.Time, cmp Compare_t[
 func Test_median10(t *testing.T) {
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 0; i < 1000; i++ {
-		m.Add(ts, 10, Cmp1)
-		check := debug_state(m, ts, Cmp1)
+		m.Add(ts, 10)
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
 
-	k, v := RealMedian(m, ts, Cmp1)
+	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts, Cmp1)
+	median, _ := m.Median(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median20(t *testing.T) {
 	m := NewMedian[int](11, 10*time.Second)
 	for i := 0; i < 1000; i++ {
-		m.Add(ts, i, Cmp1)
-		check := debug_state(m, ts, Cmp1)
+		m.Add(ts, i)
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
 
-	k, v := RealMedian(m, ts, Cmp1)
+	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts, Cmp1)
+	median, _ := m.Median(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median30(t *testing.T) {
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 1000; i > 0; i-- {
-		m.Add(ts, i, Cmp1)
-		check := debug_state(m, ts, Cmp1)
+		m.Add(ts, i)
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
 
-	k, v := RealMedian(m, ts, Cmp1)
+	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts, Cmp1)
+	median, _ := m.Median(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
@@ -158,19 +154,19 @@ func Test_median40(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	m := NewMedian[int](21, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000), Cmp1)
-		check := debug_state(m, ts, Cmp1)
+		m.Add(ts, rand.Intn(1000))
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
 
-	k, v := RealMedian(m, ts, Cmp1)
+	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts, Cmp1)
+	median, _ := m.Median(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
@@ -179,19 +175,19 @@ func Test_median50(t *testing.T) {
 	size := 21
 	m := NewMedian[int](size, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000), Cmp1)
-		// m.Add(100, Cmp1)
-		check := debug_state(m, ts, Cmp1)
+		m.Add(ts, rand.Intn(1000))
+		// m.Add(100, )
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
 
-	k, v := RealMedian(m, ts, Cmp1)
-	median, _ := m.Median(ts, Cmp1)
+	k, v := RealMedian(m, ts)
+	median, _ := m.Median(ts)
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, median)
 
 	for i := 0; i < size; i++ {
@@ -199,16 +195,16 @@ func Test_median50(t *testing.T) {
 		t.Logf("REMOVE: %v", begin)
 		it, ok := m.cx.Find(begin)
 		assert.Assert(t, ok)
-		m.remove(it, Cmp1)
+		m.remove(it)
 
-		m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+		m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 			t.Logf("RANGE: %02d %v", key, value.Data)
 			return true
 		})
 
 		t.Logf("MEDIAN: size=%v, left=%v, right=%v, mkey=%v, mvalue=%v", m.cx.Size(), m.left, m.right, m.median.Key, m.median.Value.Data)
 
-		check := debug_state(m, ts, Cmp1)
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 		begin++
 		if begin >= m.limit {
@@ -222,13 +218,13 @@ func Test_median60(t *testing.T) {
 	size := 100
 	m := NewMedian[int](size, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000), Cmp1)
+		m.Add(ts, rand.Intn(1000))
 		ts = ts.Add(500 * time.Millisecond)
-		check := debug_state(m, ts, Cmp1)
+		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, Cmp1, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})

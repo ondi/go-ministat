@@ -35,10 +35,6 @@ type Result_t struct {
 
 type Less_t = cache.Less_t[string, *Counter_t]
 
-func CmpDuration(a, b time.Duration) int {
-	return int(a - b)
-}
-
 func (self *Counter_t) CounterAdd(a int64) {
 	self.sampling += a
 }
@@ -89,7 +85,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, begin time.Tim
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
-	counter.last_median, size = counter.median.Add(end, end.Sub(begin), CmpDuration)
+	counter.last_median, size = counter.median.Add(end, end.Sub(begin))
 	duration = counter.last_median
 	self.mx.Unlock()
 	return
@@ -150,6 +146,6 @@ func to_result(in *Counter_t, ts time.Time) Result_t {
 		Errors:       in.errors,
 		BeginLastTs:  in.begin_last_ts,
 		Duration:     in.last_median,
-		DurationSize: in.median.Evict(ts, CmpDuration),
+		DurationSize: in.median.Evict(ts),
 	}
 }

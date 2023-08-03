@@ -10,14 +10,17 @@ import (
 	"github.com/ondi/go-cache"
 )
 
-type Compare_t[T any] func(a T, b T) int
+type Number interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
 
-type Mapped_t[T any] struct {
+type Mapped_t[T Number] struct {
 	Ts   time.Time
 	Data T
 }
 
-type Median_t[T any] struct {
+type Median_t[T Number] struct {
 	cx     *cache.Cache_t[int, Mapped_t[T]]
 	median *cache.Value_t[int, Mapped_t[T]]
 	ttl    time.Duration
@@ -27,7 +30,7 @@ type Median_t[T any] struct {
 	right  int
 }
 
-func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
+func NewMedian[T Number](limit int, ttl time.Duration) (self *Median_t[T]) {
 	self = &Median_t[T]{
 		cx:    cache.New[int, Mapped_t[T]](),
 		ttl:   ttl,
@@ -38,8 +41,8 @@ func NewMedian[T any](limit int, ttl time.Duration) (self *Median_t[T]) {
 	return
 }
 
-func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
-	self.Evict(ts, cmp)
+func (self *Median_t[T]) Add(ts time.Time, data T) (T, int) {
+	self.Evict(ts)
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
@@ -56,7 +59,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 		if self.cx.Size() == 1 {
 			self.median = it
 			self.right++
-		} else if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+		} else if it.Value.Data > self.median.Value.Data {
 			self.right++
 		} else {
 			self.left++
@@ -69,13 +72,13 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 		}
 		// если перезаписываемое значения остаётся в той же половине списка,
 		// коррекция указалетей left и right не требуется.
-		if cmp(data, self.median.Value.Data) > 0 {
-			if cmp(it.Value.Data, self.median.Value.Data) < 0 {
+		if data > self.median.Value.Data {
+			if it.Value.Data < self.median.Value.Data {
 				self.left--
 				self.right++
 			}
 		} else {
-			if cmp(it.Value.Data, self.median.Value.Data) >= 0 {
+			if it.Value.Data >= self.median.Value.Data {
 				self.left++
 				self.right--
 			}
@@ -85,9 +88,9 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 	}
 	// insert value into sorted list
 	at := self.median
-	if cmp(it.Value.Data, self.median.Value.Data) > 0 {
+	if it.Value.Data > self.median.Value.Data {
 		for ; at != self.cx.End(); at = at.Next() {
-			if cmp(it.Value.Data, at.Value.Data) <= 0 && it != at {
+			if it.Value.Data <= at.Value.Data && it != at {
 				break
 			}
 		}
@@ -95,7 +98,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T, cmp Compare_t[T]) (T, int) {
 		cache.SetPrev(it, at)
 	} else {
 		for ; at != self.cx.End(); at = at.Prev() {
-			if cmp(it.Value.Data, at.Value.Data) > 0 && it != at {
+			if it.Value.Data > at.Value.Data && it != at {
 				break
 			}
 		}
@@ -118,14 +121,26 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) Evict(ts time.Time, cmp Compare_t[T]) int {
+func (self *Median_t[T]) begin() (begin int) {
+	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
+		begin += self.limit
+	}
+	return
+}
+
+func (self *Median_t[T]) Median(ts time.Time) (median T, size int) {
+	size, median = self.Evict(ts), self.median.Value.Data
+	return
+}
+
+func (self *Median_t[T]) Evict(ts time.Time) int {
 	begin := self.begin()
 	for self.cx.Size() > 0 {
 		it, _ := self.cx.Find(begin)
 		if ts.Sub(it.Value.Ts) < self.ttl {
 			return self.cx.Size()
 		}
-		self.remove(it, cmp)
+		self.remove(it)
 		begin++
 		if begin >= self.limit {
 			begin = 0
@@ -134,23 +149,11 @@ func (self *Median_t[T]) Evict(ts time.Time, cmp Compare_t[T]) int {
 	return 0
 }
 
-func (self *Median_t[T]) Median(ts time.Time, cmp Compare_t[T]) (median T, size int) {
-	size, median = self.Evict(ts, cmp), self.median.Value.Data
-	return
-}
-
-func (self *Median_t[T]) begin() (begin int) {
-	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
-		begin += self.limit
-	}
-	return
-}
-
-func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare_t[T]) {
-	if temp := cmp(it.Value.Data, self.median.Value.Data); temp < 0 {
+func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]]) {
+	if it.Value.Data < self.median.Value.Data {
 		self.cx.Remove(it.Key)
 		self.left--
-	} else if temp > 0 {
+	} else if it.Value.Data > self.median.Value.Data {
 		self.cx.Remove(it.Key)
 		self.right--
 	} else {
@@ -164,8 +167,8 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]], cmp Compare
 	self.move_median()
 }
 
-func (self *Median_t[T]) range_test(ts time.Time, cmp Compare_t[T], f func(key int, value Mapped_t[T]) bool) {
-	self.Evict(ts, cmp)
+func (self *Median_t[T]) range_test(ts time.Time, f func(key int, value Mapped_t[T]) bool) {
+	self.Evict(ts)
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if f(it.Key, it.Value) == false {
 			return
