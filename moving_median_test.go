@@ -16,7 +16,7 @@ import (
 var ts = time.Now()
 
 func KeyValues[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []string) {
-	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, func(k int, v MedianMapped_t[Value_t]) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v.Data))
 		return true
 	})
@@ -24,7 +24,7 @@ func KeyValues[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []string
 }
 
 func Keys[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []int) {
-	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, func(k int, v MedianMapped_t[Value_t]) bool {
 		res = append(res, k)
 		return true
 	})
@@ -34,7 +34,7 @@ func Keys[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []int) {
 func RealMedian[Value_t Number](m *Median_t[Value_t], ts time.Time) (key int, value Value_t) {
 	_, size := m.Median(ts)
 	half := size / 2
-	m.range_test(ts, func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts, func(k int, v MedianMapped_t[Value_t]) bool {
 		key = k
 		value = v.Data
 		half--
@@ -50,7 +50,7 @@ func check_sorted[Value_t Number](m *Median_t[Value_t], ts time.Time) (res strin
 	var prev_set bool
 	var prev_value Value_t
 	// do not evict
-	m.range_test(ts.Add(-time.Hour), func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts.Add(-time.Hour), func(k int, v MedianMapped_t[Value_t]) bool {
 		if prev_set {
 			if prev_value > v.Data {
 				res = fmt.Sprintf("SORT CHECK: %v %v", prev_value, v)
@@ -76,7 +76,7 @@ func debug_state[Value_t Number](m *Median_t[Value_t], ts time.Time) (res string
 
 	count := m.left
 	// do not evict
-	m.range_test(ts.Add(-time.Hour), func(k int, v Mapped_t[Value_t]) bool {
+	m.range_test(ts.Add(-time.Hour), func(k int, v MedianMapped_t[Value_t]) bool {
 		if v.Data > m.median.Value.Data {
 			res = fmt.Sprintf("MEDIAN VALUE: size=%v, left=%v, right=%v, check=(%v,%v), median=(%v,%v)", m.cx.Size(), m.left, m.right, k, v, m.median.Key, m.median.Value.Data)
 			return false
@@ -101,7 +101,7 @@ func Test_median10(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -120,7 +120,7 @@ func Test_median20(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -139,7 +139,7 @@ func Test_median30(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %v %v", key, value.Data)
 		return true
 	})
@@ -159,7 +159,7 @@ func Test_median40(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
@@ -181,7 +181,7 @@ func Test_median50(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})
@@ -197,7 +197,7 @@ func Test_median50(t *testing.T) {
 		assert.Assert(t, ok)
 		m.remove(it)
 
-		m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+		m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 			t.Logf("RANGE: %02d %v", key, value.Data)
 			return true
 		})
@@ -224,7 +224,7 @@ func Test_median60(t *testing.T) {
 		assert.Assert(t, len(check) == 0, check)
 	}
 
-	m.range_test(ts, func(key int, value Mapped_t[int]) bool {
+	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
 		t.Logf("RANGE: %02d %v", key, value.Data)
 		return true
 	})

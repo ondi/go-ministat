@@ -16,14 +16,14 @@ type Number interface {
 		~float32 | ~float64
 }
 
-type Mapped_t[T Number] struct {
+type MedianMapped_t[T Number] struct {
 	Ts   time.Time
 	Data T
 }
 
 type Median_t[T Number] struct {
-	cx     *cache.Cache_t[int, Mapped_t[T]]
-	median *cache.Value_t[int, Mapped_t[T]]
+	cx     *cache.Cache_t[int, MedianMapped_t[T]]
+	median *cache.Value_t[int, MedianMapped_t[T]]
 	ttl    time.Duration
 	seq    int
 	limit  int
@@ -33,7 +33,7 @@ type Median_t[T Number] struct {
 
 func NewMedian[T Number](limit int, ttl time.Duration) (self *Median_t[T]) {
 	self = &Median_t[T]{
-		cx:    cache.New[int, Mapped_t[T]](),
+		cx:    cache.New[int, MedianMapped_t[T]](),
 		ttl:   ttl,
 		limit: limit,
 		right: -1,
@@ -50,11 +50,11 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, int) {
 	}
 	it, inserted := self.cx.CreateBack(
 		self.seq,
-		func(p *Mapped_t[T]) {
+		func(p *MedianMapped_t[T]) {
 			p.Ts = ts
 			p.Data = data
 		},
-		func(p *Mapped_t[T]) {},
+		func(p *MedianMapped_t[T]) {},
 	)
 	if inserted {
 		if self.cx.Size() == 1 {
@@ -150,7 +150,7 @@ func (self *Median_t[T]) Evict(ts time.Time) int {
 	return 0
 }
 
-func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]]) {
+func (self *Median_t[T]) remove(it *cache.Value_t[int, MedianMapped_t[T]]) {
 	if it.Value.Data < self.median.Value.Data {
 		self.cx.Remove(it.Key)
 		self.left--
@@ -168,7 +168,7 @@ func (self *Median_t[T]) remove(it *cache.Value_t[int, Mapped_t[T]]) {
 	self.move_median()
 }
 
-func (self *Median_t[T]) range_test(ts time.Time, f func(key int, value Mapped_t[T]) bool) {
+func (self *Median_t[T]) range_test(ts time.Time, f func(key int, value MedianMapped_t[T]) bool) {
 	self.Evict(ts)
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if f(it.Key, it.Value) == false {
