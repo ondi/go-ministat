@@ -13,8 +13,6 @@ import (
 	"gotest.tools/assert"
 )
 
-var ts = time.Now()
-
 func KeyValues[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []string) {
 	m.range_test(ts, func(k int, v MedianMapped_t[Value_t]) bool {
 		res = append(res, fmt.Sprintf("(%v,%v)", k, v.Data))
@@ -32,7 +30,7 @@ func Keys[Value_t Number](m *Median_t[Value_t], ts time.Time) (res []int) {
 }
 
 func RealMedian[Value_t Number](m *Median_t[Value_t], ts time.Time) (key int, value Value_t) {
-	_, size := m.Median(ts)
+	_, size := m.Value(ts)
 	half := size / 2
 	m.range_test(ts, func(k int, v MedianMapped_t[Value_t]) bool {
 		key = k
@@ -94,6 +92,7 @@ func debug_state[Value_t Number](m *Median_t[Value_t], ts time.Time) (res string
 }
 
 func Test_median10(t *testing.T) {
+	ts := time.Now()
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, 10)
@@ -108,11 +107,12 @@ func Test_median10(t *testing.T) {
 
 	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts)
+	median, _ := m.Value(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median20(t *testing.T) {
+	ts := time.Now()
 	m := NewMedian[int](11, 10*time.Second)
 	for i := 0; i < 1000; i++ {
 		m.Add(ts, i)
@@ -127,11 +127,12 @@ func Test_median20(t *testing.T) {
 
 	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts)
+	median, _ := m.Value(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median30(t *testing.T) {
+	ts := time.Now()
 	m := NewMedian[int](10, 10*time.Second)
 	for i := 1000; i > 0; i-- {
 		m.Add(ts, i)
@@ -146,15 +147,16 @@ func Test_median30(t *testing.T) {
 
 	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts)
+	median, _ := m.Value(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median40(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+	ts := time.Now()
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	m := NewMedian[int](21, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000))
+		m.Add(ts, rnd.Intn(1000))
 		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
 	}
@@ -166,16 +168,17 @@ func Test_median40(t *testing.T) {
 
 	k, v := RealMedian(m, ts)
 	t.Logf("REAL MEDIAN: %v %v", k, v)
-	median, _ := m.Median(ts)
+	median, _ := m.Value(ts)
 	assert.Assert(t, median == v, fmt.Sprintf("TEST=%v, REAL=%v", median, v))
 }
 
 func Test_median50(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
 	size := 21
+	ts := time.Now()
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	m := NewMedian[int](size, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000))
+		m.Add(ts, rnd.Intn(1000))
 		// m.Add(100, )
 		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)
@@ -187,7 +190,7 @@ func Test_median50(t *testing.T) {
 	})
 
 	k, v := RealMedian(m, ts)
-	median, _ := m.Median(ts)
+	median, _ := m.Value(ts)
 	t.Logf("REAL MEDIAN: %v %v, median=%v", k, v, median)
 
 	for i := 0; i < size; i++ {
@@ -214,11 +217,12 @@ func Test_median50(t *testing.T) {
 }
 
 func Test_median60(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
 	size := 100
+	ts := time.Now()
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	m := NewMedian[int](size, 10*time.Second)
 	for i := 0; i < 20000; i++ {
-		m.Add(ts, rand.Intn(1000))
+		m.Add(ts, rnd.Intn(1000))
 		ts = ts.Add(500 * time.Millisecond)
 		check := debug_state(m, ts)
 		assert.Assert(t, len(check) == 0, check)

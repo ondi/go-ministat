@@ -1,5 +1,5 @@
 //
-//
+// go test -run Test_average10 -v -count=1
 //
 
 package ministat
@@ -12,9 +12,15 @@ import (
 )
 
 func Test_average10(t *testing.T) {
-	m := NewAverage[int](10, 10*time.Second)
+	ts := time.Now()
+	var res int
+	var size int
+	m := NewAverage[int](100, 1000*time.Millisecond)
 	for i := 0; i < 1000; i++ {
-		_, size := m.Add(ts, 10)
-		assert.Assert(t, size > 0, size)
+		ts = ts.Add(100 * time.Millisecond)
+		res, size = m.Add(ts, i)
+		t.Logf("res=%v, size=%v", res, size)
 	}
+	assert.Assert(t, res == 994, res)
+	assert.Assert(t, size == 10, size)
 }
