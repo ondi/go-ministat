@@ -17,7 +17,7 @@ import (
 	"go.opencensus.io/tag"
 )
 
-type views_t struct {
+type OpencensusViews_t struct {
 	tagPage               tag.Key
 	tagError              tag.Key
 	tagStatus             tag.Key
@@ -29,8 +29,8 @@ type views_t struct {
 	pageLatencyMedianSize *stats.Int64Measure
 }
 
-func NewOpencensusViews(prefix string) (mviews Views, oviews []*view.View, err error) {
-	self := &views_t{
+func NewOpencensusViews(prefix string) (self *OpencensusViews_t, oviews []*view.View, err error) {
+	self = &OpencensusViews_t{
 		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
 		pagePending:           stats.Int64(prefix+"pending_sum", "number of pending requests", stats.UnitDimensionless),
 		pageProcessed:         stats.Int64(prefix+"payload_processed", "processed by page", stats.UnitDimensionless),
@@ -94,7 +94,7 @@ func NewOpencensusViews(prefix string) (mviews Views, oviews []*view.View, err e
 	return
 }
 
-func (self *views_t) HitBegin(ctx context.Context, page string) (err error) {
+func (self *OpencensusViews_t) HitBegin(ctx context.Context, page string) (err error) {
 	var name strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
@@ -106,7 +106,7 @@ func (self *views_t) HitBegin(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (self *views_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (self *OpencensusViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	var name, errs strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
@@ -141,14 +141,16 @@ func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder 
 	return out
 }
 
-type no_views_t struct{}
+type NoOpencensusViews_t struct{}
 
-func NewNoViews(prefix string) (Views, []*view.View, error) { return &no_views_t{}, nil, nil }
+func NewNoViews(prefix string) (*NoOpencensusViews_t, []*view.View, error) {
+	return &NoOpencensusViews_t{}, nil, nil
+}
 
-func (*no_views_t) HitBegin(ctx context.Context, page string) (err error) {
+func (*NoOpencensusViews_t) HitBegin(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*no_views_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (*NoOpencensusViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	return
 }
