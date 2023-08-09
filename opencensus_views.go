@@ -29,7 +29,7 @@ type OpencensusViews_t struct {
 	pageLatencyMedianSize *stats.Int64Measure
 }
 
-func NewOpencensusViews(prefix string) (self *OpencensusViews_t, oviews []*view.View, err error) {
+func NewOpencensusViews(prefix string) (self *OpencensusViews_t, err error) {
 	self = &OpencensusViews_t{
 		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
 		pagePending:           stats.Int64(prefix+"pending_sum", "number of pending requests", stats.UnitDimensionless),
@@ -47,7 +47,7 @@ func NewOpencensusViews(prefix string) (self *OpencensusViews_t, oviews []*view.
 	if self.tagStatus, err = tag.NewKey("status"); err != nil {
 		return
 	}
-	oviews = []*view.View{
+	views := []*view.View{
 		{
 			Name:        prefix + "request_count",
 			Description: "number of requests",
@@ -91,6 +91,7 @@ func NewOpencensusViews(prefix string) (self *OpencensusViews_t, oviews []*view.
 			Aggregation: view.LastValue(),
 		},
 	}
+	err = view.Register(views...)
 	return
 }
 
@@ -141,16 +142,16 @@ func PrintableAscii(s string, out *strings.Builder, limit int) *strings.Builder 
 	return out
 }
 
-type NoOpencensusViews_t struct{}
+type NoViews_t struct{}
 
-func NewNoViews(prefix string) (*NoOpencensusViews_t, []*view.View, error) {
-	return &NoOpencensusViews_t{}, nil, nil
+func NewNoViews(prefix string) (*NoViews_t, error) {
+	return &NoViews_t{}, nil
 }
 
-func (*NoOpencensusViews_t) HitBegin(ctx context.Context, page string) (err error) {
+func (*NoViews_t) HitBegin(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*NoOpencensusViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (*NoViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
 	return
 }
