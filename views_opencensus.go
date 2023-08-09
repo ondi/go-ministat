@@ -29,6 +29,11 @@ type OpencensusViews_t struct {
 	pageLatencyMedianSize *stats.Int64Measure
 }
 
+// import "contrib.go.opencensus.io/exporter/prometheus"
+//
+//	if exporter, err = prometheus.NewExporter(prometheus.Options{}); err == nil {
+//		oc.Handle("/debug/metrics", exporter)
+//	}
 func NewOpencensusViews(prefix string) (self *OpencensusViews_t, err error) {
 	self = &OpencensusViews_t{
 		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
