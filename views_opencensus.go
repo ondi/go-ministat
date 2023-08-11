@@ -1,7 +1,7 @@
 //
-// RPS = sum(rate(http_request_count{app="$app_name"}[1m])) by(page)
-// PENDING = sum(http_pending_sum{app="$app_name"}) by (page)
-// LATENCY = avg(http_latency_median{app="$app_name"}) by (page)
+// RPS = sum(rate(http_page_request{app="$app_name"}[1m])) by(page)
+// PENDING = sum(http_page_pending{app="$app_name"}) by (page)
+// LATENCY = avg(http_page_latency_median{app="$app_name"}) by (page)
 //
 
 package ministat
@@ -36,12 +36,12 @@ type OpencensusViews_t struct {
 //	}
 func NewOpencensusViews(prefix string) (self *OpencensusViews_t, err error) {
 	self = &OpencensusViews_t{
-		pageRequest:           stats.Int64(prefix+"request_count", "number of requests", stats.UnitDimensionless),
-		pagePending:           stats.Int64(prefix+"pending_sum", "number of pending requests", stats.UnitDimensionless),
-		pageProcessed:         stats.Int64(prefix+"payload_processed", "processed by page", stats.UnitDimensionless),
-		pageError:             stats.Int64(prefix+"payload_error", "error by page", stats.UnitDimensionless),
-		pageLatencyMedian:     stats.Int64(prefix+"latency_median", "latency median", stats.UnitDimensionless),
-		pageLatencyMedianSize: stats.Int64(prefix+"latency_median_size", "latency median size", stats.UnitDimensionless),
+		pageRequest:           stats.Int64(prefix+"page_request", "number of requests", stats.UnitDimensionless),
+		pagePending:           stats.Int64(prefix+"page_pending", "number of pending requests", stats.UnitDimensionless),
+		pageProcessed:         stats.Int64(prefix+"page_processed", "processed by page", stats.UnitDimensionless),
+		pageError:             stats.Int64(prefix+"page_error", "error by page", stats.UnitDimensionless),
+		pageLatencyMedian:     stats.Int64(prefix+"page_latency_median", "latency median", stats.UnitDimensionless),
+		pageLatencyMedianSize: stats.Int64(prefix+"page_latency_median_size", "latency median size", stats.UnitDimensionless),
 	}
 	if self.tagPage, err = tag.NewKey("page"); err != nil {
 		return
@@ -54,42 +54,42 @@ func NewOpencensusViews(prefix string) (self *OpencensusViews_t, err error) {
 	}
 	views := []*view.View{
 		{
-			Name:        prefix + "request_count",
+			Name:        prefix + "page_request",
 			Description: "number of requests",
 			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageRequest,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "pending_sum",
+			Name:        prefix + "page_pending",
 			Description: "number of pending requests",
 			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pagePending,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "payload_processed",
+			Name:        prefix + "page_processed",
 			Description: "processed by page",
 			TagKeys:     []tag.Key{self.tagPage, self.tagStatus},
 			Measure:     self.pageProcessed,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "payload_error",
+			Name:        prefix + "page_error",
 			Description: "error by page",
 			TagKeys:     []tag.Key{self.tagPage, self.tagError},
 			Measure:     self.pageError,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        prefix + "latency_median",
+			Name:        prefix + "page_latency_median",
 			Description: "latency median",
 			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageLatencyMedian,
 			Aggregation: view.LastValue(),
 		},
 		{
-			Name:        prefix + "latency_median_size",
+			Name:        prefix + "page_latency_median_size",
 			Description: "latency median size",
 			TagKeys:     []tag.Key{self.tagPage},
 			Measure:     self.pageLatencyMedianSize,

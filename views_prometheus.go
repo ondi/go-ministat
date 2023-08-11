@@ -25,19 +25,31 @@ type Prometheus_t struct {
 // mux.Handle("/debug/metrics", promhttp.Handler())
 func NewPrometheusViews(prefix string) (self *Prometheus_t, err error) {
 	self = &Prometheus_t{
-		pageRequest:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "request_count"}, []string{"page"}),
-		pagePending:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "pending_sum"}, []string{"page"}),
-		pageProcessed:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "payload_processed"}, []string{"page", "status"}),
-		pageError:             prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "payload_error"}, []string{"page", "error"}),
-		pageLatencyMedian:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median"}, []string{"page"}),
-		pageLatencyMedianSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median_size"}, []string{"page"}),
+		pageRequest:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_request"}, []string{"page"}),
+		pagePending:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_pending"}, []string{"page"}),
+		pageProcessed:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_processed"}, []string{"page", "status"}),
+		pageError:             prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_error"}, []string{"page", "error"}),
+		pageLatencyMedian:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_latency_median"}, []string{"page"}),
+		pageLatencyMedianSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_latency_median_size"}, []string{"page"}),
 	}
-	prometheus.Register(self.pageRequest)
-	prometheus.Register(self.pagePending)
-	prometheus.Register(self.pageProcessed)
-	prometheus.Register(self.pageError)
-	prometheus.Register(self.pageLatencyMedian)
-	prometheus.Register(self.pageLatencyMedianSize)
+	if err = prometheus.Register(self.pageRequest); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.pagePending); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.pageProcessed); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.pageError); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.pageLatencyMedian); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.pageLatencyMedianSize); err != nil {
+		return
+	}
 	return
 }
 
