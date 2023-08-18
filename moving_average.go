@@ -34,7 +34,7 @@ func NewAverage[T Number](limit int, ttl time.Duration) (self *Average_t[T]) {
 	return
 }
 
-func (self *Average_t[T]) Add(ts time.Time, data T) (T, int) {
+func (self *Average_t[T]) Add(ts time.Time, data T) (T, T) {
 	self.Evict(ts)
 	self.cx.CreateBack(
 		ts.Truncate(self.truncate),
@@ -49,13 +49,13 @@ func (self *Average_t[T]) Add(ts time.Time, data T) (T, int) {
 	)
 	self.total_sum += data
 	self.total_count++
-	return self.total_sum / self.total_count, self.cx.Size()
+	return self.total_sum / self.total_count, self.total_count
 }
 
-func (self *Average_t[T]) Evict(ts time.Time) int {
+func (self *Average_t[T]) Evict(ts time.Time) T {
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
 		if self.cx.Size() <= self.limit && ts.Sub(it.Key) < self.ttl {
-			return self.cx.Size()
+			return self.total_count
 		}
 		self.total_sum -= it.Value.Data
 		self.total_count -= it.Value.Count
@@ -64,8 +64,8 @@ func (self *Average_t[T]) Evict(ts time.Time) int {
 	return 0
 }
 
-func (self *Average_t[T]) Value(ts time.Time) (value T, size int) {
-	if size = self.Evict(ts); size > 0 {
+func (self *Average_t[T]) Value(ts time.Time) (value T, count T) {
+	if count = self.Evict(ts); count > 0 {
 		value = self.total_sum / self.total_count
 	}
 	return
