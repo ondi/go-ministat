@@ -43,6 +43,8 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
+func NoEvict(page string, value *Counter_t) {}
+
 type Storage_t struct {
 	mx           sync.Mutex
 	pages        *unique.Often_t[*Counter_t]
@@ -50,17 +52,13 @@ type Storage_t struct {
 	median_limit int
 }
 
-func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration) (self *Storage_t) {
+func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, evict func(page string, value *Counter_t)) (self *Storage_t) {
 	self = &Storage_t{
-		pages:        unique.NewOften(limit_pages, self.evict_page),
+		pages:        unique.NewOften(limit_pages, evict),
 		median_ttl:   median_ttl,
 		median_limit: median_limit,
 	}
 	return
-}
-
-func (self *Storage_t) evict_page(page string, value *Counter_t) {
-
 }
 
 func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
@@ -95,7 +93,7 @@ func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bo
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {
-		out = to_result(res, ts)
+		out = ToResult(res, ts)
 	}
 	self.mx.Unlock()
 	return
@@ -106,7 +104,7 @@ func (self *Storage_t) RangeSort(order Less_t, ts time.Time, f func(name string,
 	self.pages.RangeSort(
 		order,
 		func(key string, value *Counter_t) bool {
-			return f(key, to_result(value, ts))
+			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -116,7 +114,7 @@ func (self *Storage_t) Range(ts time.Time, f func(name string, res Result_t) boo
 	self.mx.Lock()
 	self.pages.Range(
 		func(key string, value *Counter_t) bool {
-			return f(key, to_result(value, ts))
+			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -138,7 +136,7 @@ func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Co
 	return a.Key < b.Key
 }
 
-func to_result(in *Counter_t, ts time.Time) Result_t {
+func ToResult(in *Counter_t, ts time.Time) Result_t {
 	return Result_t{
 		Hits:         in.hits,
 		Pending:      in.pending,

@@ -13,7 +13,7 @@ import (
 )
 
 func Test_Evict01(t *testing.T) {
-	s := NewStorage(0, 10, time.Second)
+	s := NewStorage(0, 10, time.Second, NoEvict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -22,7 +22,7 @@ func Test_Evict01(t *testing.T) {
 }
 
 func Test_Evict02(t *testing.T) {
-	s := NewStorage(1, 10, time.Second)
+	s := NewStorage(1, 10, time.Second, NoEvict)
 
 	ts := time.Now()
 	for i := int64(0); i < 10; i++ {
@@ -36,7 +36,7 @@ func Test_Evict02(t *testing.T) {
 }
 
 func Test_Get01(t *testing.T) {
-	s := NewStorage(1, 10, time.Second)
+	s := NewStorage(1, 10, time.Second, NoEvict)
 
 	ts := time.Now()
 	s.MetricBegin("test1", ts)
