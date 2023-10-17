@@ -42,16 +42,16 @@ func Args(out io.Writer, args ...interface{}) {
 	}
 }
 
-func TrimRight(in []byte, tr map[byte]bool) []byte {
-	pos := len(in)
-	for pos > 0 {
-		if tr[in[pos-1]] {
-			pos--
-		} else {
-			break
-		}
+func TrimRight(in []byte) []byte {
+	return TrimRightMap(in, TRIM)
+}
+
+func TrimRightMap(in []byte, trim map[byte]bool) []byte {
+	pos := len(in) - 1
+	for pos >= 0 && trim[in[pos]] {
+		pos--
 	}
-	return in[:pos]
+	return in[:pos+1]
 }
 
 type Copy_t struct {
