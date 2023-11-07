@@ -3,7 +3,6 @@ module github.com/ondi/go-ministat
 go 1.21
 
 require (
-	github.com/google/uuid v1.4.0
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
 	github.com/ondi/go-tst v0.0.0-20220706141417-afdca779abf6
 	github.com/ondi/go-unique v0.0.0-20230501171744-40e43be943c7
@@ -21,6 +20,6 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
