@@ -41,7 +41,7 @@ type LimitWriter_t struct {
 }
 
 func (self *LimitWriter_t) Write(p []byte) (n int, err error) {
-	if self.Limit > len(p) {
+	if self.Limit >= len(p) {
 		n, err = self.Buf.Write(p)
 	} else {
 		for ; self.Limit > 0; self.Limit-- {
