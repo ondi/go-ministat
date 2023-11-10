@@ -11,7 +11,7 @@ import (
 )
 
 func Test_Args01(t *testing.T) {
-	cw := Copy_t{Limit: 5}
+	cw := LimitWriter_t{Limit: 5}
 
 	n, _ := cw.Write([]byte("123"))
 	assert.Assert(t, n == 3, n)
@@ -21,7 +21,7 @@ func Test_Args01(t *testing.T) {
 }
 
 func Test_Args02(t *testing.T) {
-	cw := Copy_t{Limit: 0}
+	cw := LimitWriter_t{Limit: 0}
 
 	n, _ := cw.Write([]byte("123"))
 	assert.Assert(t, n == 0, n)

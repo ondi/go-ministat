@@ -34,23 +34,23 @@ func (self *ResponseWriter_t) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 type Writer_t struct {
 	ResponseWriter_t
-	Copy_t
+	LimitWriter_t
 }
 
 func (self *Writer_t) Write(p []byte) (n int, err error) {
 	n, err = self.ResponseWriter_t.Write(p)
-	self.Copy_t.Write(p[:n])
+	self.LimitWriter_t.Write(p[:n])
 	return
 }
 
 type Reader_t struct {
 	io.ReadCloser
-	Copy_t
+	LimitWriter_t
 }
 
 func (self *Reader_t) Read(p []byte) (n int, err error) {
 	n, err = self.ReadCloser.Read(p)
-	self.Copy_t.Write(p[:n])
+	self.LimitWriter_t.Write(p[:n])
 	return
 }
 
@@ -75,8 +75,9 @@ func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse
 }
 
 func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, Copy_t: Copy_t{Limit: 1024}}
-	reader := Reader_t{ReadCloser: r.Body, Copy_t: Copy_t{Limit: 1024}}
+	var writer_buf, reader_buf bytes.Buffer
+	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Out: &writer_buf, Limit: 1024}}
+	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Out: &reader_buf, Limit: 1024}}
 	r.Body = &reader
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
@@ -87,6 +88,6 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		var sb bytes.Buffer
 		self.errors(r.Context(), &sb)
 		self.log(r.Context(), "RESPONSE: %v status=%d resp='%s', req='%s', errors=%s",
-			r.URL.String(), writer.status_code, TrimRight(writer.Buf.Bytes()), TrimRight(reader.Buf.Bytes()), sb.String())
+			r.URL.String(), writer.status_code, bytes.TrimRight(writer_buf.Bytes(), "\r\n\t\v"), bytes.TrimRight(reader_buf.Bytes(), "\r\n\t\v"), sb.String())
 	}
 }

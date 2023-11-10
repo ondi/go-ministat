@@ -5,19 +5,12 @@
 package ministat
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"io"
+	"unicode/utf8"
 )
-
-var TRIM = map[byte]bool{
-	'\r': true,
-	'\n': true,
-	'\t': true,
-	'\v': true,
-}
 
 func Args(out io.Writer, args ...interface{}) {
 	var n int
@@ -42,34 +35,23 @@ func Args(out io.Writer, args ...interface{}) {
 	}
 }
 
-func TrimRight(in []byte) []byte {
-	return TrimRightMap(in, TRIM)
+type LimitWriter_t struct {
+	Out     io.Writer
+	Limit   int
+	written int
 }
 
-func TrimRightMap(in []byte, trim map[byte]bool) []byte {
-	pos := len(in) - 1
-	for pos >= 0 && trim[in[pos]] {
-		pos--
-	}
-	return in[:pos+1]
-}
-
-type Copy_t struct {
-	Buf   bytes.Buffer
-	Limit int
-}
-
-func (self *Copy_t) Write(p []byte) (n int, err error) {
-	if n = self.Limit - self.Buf.Len(); n > len(p) {
-		n, err = self.Buf.Write(p)
+func (self *LimitWriter_t) Write(p []byte) (n int, err error) {
+	if n = self.Limit - self.written; n > len(p) {
+		n, err = self.Out.Write(p)
 	} else {
-		n, err = self.Buf.Write(p[:n])
+		for ; n > 0; n-- {
+			if r, _ := utf8.DecodeLastRune(p[:n]); r != utf8.RuneError {
+				break
+			}
+		}
+		n, err = self.Out.Write(p[:n])
 	}
-	return
-}
-
-type NoCopy_t struct{}
-
-func (NoCopy_t) Write(p []byte) (n int, err error) {
+	self.written += n
 	return
 }
