@@ -36,22 +36,21 @@ func Args(out io.Writer, args ...interface{}) {
 }
 
 type LimitWriter_t struct {
-	Out     io.Writer
-	Limit   int
-	written int
+	Buf   io.Writer
+	Limit int
 }
 
 func (self *LimitWriter_t) Write(p []byte) (n int, err error) {
-	if n = self.Limit - self.written; n > len(p) {
-		n, err = self.Out.Write(p)
+	if self.Limit > len(p) {
+		n, err = self.Buf.Write(p)
 	} else {
-		for ; n > 0; n-- {
-			if r, _ := utf8.DecodeLastRune(p[:n]); r != utf8.RuneError {
+		for ; self.Limit > 0; self.Limit-- {
+			if r, _ := utf8.DecodeLastRune(p[:self.Limit]); r != utf8.RuneError {
 				break
 			}
 		}
-		n, err = self.Out.Write(p[:n])
+		n, err = self.Buf.Write(p[:self.Limit])
 	}
-	self.written += n
+	self.Limit -= n
 	return
 }

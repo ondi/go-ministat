@@ -76,8 +76,8 @@ func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse
 
 func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var writer_buf, reader_buf bytes.Buffer
-	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Out: &writer_buf, Limit: 1024}}
-	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Out: &reader_buf, Limit: 1024}}
+	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Buf: &writer_buf, Limit: 1024}}
+	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Buf: &reader_buf, Limit: 1024}}
 	r.Body = &reader
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
