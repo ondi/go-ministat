@@ -53,11 +53,11 @@ func NewPrometheusViews(prefix string) (views Views, err error) {
 }
 
 func (self *Prometheus_t) HitBegin(ctx context.Context, page string, entry string) (err error) {
-	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page})
+	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
 	if err != nil {
 		return
 	}
-	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page})
+	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
 	if err != nil {
 		return
 	}
