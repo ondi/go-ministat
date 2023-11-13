@@ -12,52 +12,52 @@ import (
 )
 
 type Prometheus_t struct {
-	pageRequest           *prometheus.CounterVec
-	pagePending           *prometheus.GaugeVec
-	pageProcessed         *prometheus.CounterVec
-	pageError             *prometheus.CounterVec
-	pageLatencyMedian     *prometheus.GaugeVec
-	pageLatencyMedianSize *prometheus.GaugeVec
+	Request           *prometheus.CounterVec
+	Pending           *prometheus.GaugeVec
+	Processed         *prometheus.CounterVec
+	Error             *prometheus.CounterVec
+	LatencyMedian     *prometheus.GaugeVec
+	LatencyMedianSize *prometheus.GaugeVec
 }
 
 // import "github.com/prometheus/client_golang/prometheus/promhttp"
 // mux.Handle("/debug/metrics", promhttp.Handler())
-func NewPrometheusViews(prefix string) (self *Prometheus_t, err error) {
-	self = &Prometheus_t{
-		pageRequest:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_request"}, []string{"page"}),
-		pagePending:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_pending"}, []string{"page"}),
-		pageProcessed:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_processed"}, []string{"page", "status"}),
-		pageError:             prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "page_error"}, []string{"page", "error"}),
-		pageLatencyMedian:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_latency_median"}, []string{"page"}),
-		pageLatencyMedianSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "page_latency_median_size"}, []string{"page"}),
+func NewPrometheusViews(prefix string) (views Views, err error) {
+	self := &Prometheus_t{
+		Request:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "request"}, []string{"page", "entry"}),
+		Pending:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "pending"}, []string{"page", "entry"}),
+		Processed:         prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "processed"}, []string{"page", "entry", "status"}),
+		Error:             prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "error"}, []string{"page", "entry", "error"}),
+		LatencyMedian:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median"}, []string{"page", "entry"}),
+		LatencyMedianSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median_size"}, []string{"page", "entry"}),
 	}
-	if err = prometheus.Register(self.pageRequest); err != nil {
+	if err = prometheus.Register(self.Request); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.pagePending); err != nil {
+	if err = prometheus.Register(self.Pending); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.pageProcessed); err != nil {
+	if err = prometheus.Register(self.Processed); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.pageError); err != nil {
+	if err = prometheus.Register(self.Error); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.pageLatencyMedian); err != nil {
+	if err = prometheus.Register(self.LatencyMedian); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.pageLatencyMedianSize); err != nil {
+	if err = prometheus.Register(self.LatencyMedianSize); err != nil {
 		return
 	}
-	return
+	return self, err
 }
 
-func (self *Prometheus_t) HitBegin(ctx context.Context, page string) (err error) {
-	_request, err := self.pageRequest.GetMetricWith(prometheus.Labels{"page": page})
+func (self *Prometheus_t) HitBegin(ctx context.Context, page string, entry string) (err error) {
+	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page})
 	if err != nil {
 		return
 	}
-	_pending, err := self.pagePending.GetMetricWith(prometheus.Labels{"page": page})
+	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page})
 	if err != nil {
 		return
 	}
@@ -66,26 +66,26 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page string) (err error)
 	return
 }
 
-func (self *Prometheus_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
-	_pending, err := self.pagePending.GetMetricWith(prometheus.Labels{"page": page})
+func (self *Prometheus_t) HitEnd(ctx context.Context, page string, entry string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
+	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
 	if err != nil {
 		return
 	}
-	_processed, err := self.pageProcessed.GetMetricWith(prometheus.Labels{"page": page, "status": status})
+	_processed, err := self.Processed.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "status": status})
 	if err != nil {
 		return
 	}
-	_latency, err := self.pageLatencyMedian.GetMetricWith(prometheus.Labels{"page": page})
+	_latency, err := self.LatencyMedian.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
 	if err != nil {
 		return
 	}
-	_latency_size, err := self.pageLatencyMedianSize.GetMetricWith(prometheus.Labels{"page": page})
+	_latency_size, err := self.LatencyMedianSize.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
 	if err != nil {
 		return
 	}
 	if len(errors) > 0 {
 		var _error prometheus.Counter
-		_error, err = self.pageError.GetMetricWith(prometheus.Labels{"page": page, "error": errors})
+		_error, err = self.Error.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "error": errors})
 		if err != nil {
 			return
 		}
