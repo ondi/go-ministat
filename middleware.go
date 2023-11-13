@@ -9,13 +9,14 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Views interface {
 	HitBegin(ctx context.Context, page string) (err error)
-	HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error)
+	HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status string, errors string) (err error)
 }
 
 type PageName_t func(*http.Request) string
@@ -107,7 +108,7 @@ func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, na
 	median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var sb bytes.Buffer
 	self.errors(ctx, &sb)
-	err := self.views.HitEnd(ctx, name, median, size, 1, writer.status_code, sb.String())
+	err := self.views.HitEnd(ctx, name, median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), sb.String())
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}

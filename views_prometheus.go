@@ -6,7 +6,6 @@ package ministat
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,12 +66,12 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page string) (err error)
 	return
 }
 
-func (self *Prometheus_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (self *Prometheus_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
 	_pending, err := self.pagePending.GetMetricWith(prometheus.Labels{"page": page})
 	if err != nil {
 		return
 	}
-	_processed, err := self.pageProcessed.GetMetricWith(prometheus.Labels{"page": page, "status": strconv.FormatInt(int64(status), 10)})
+	_processed, err := self.pageProcessed.GetMetricWith(prometheus.Labels{"page": page, "status": status})
 	if err != nil {
 		return
 	}

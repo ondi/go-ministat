@@ -8,7 +8,6 @@ package ministat
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -112,12 +111,12 @@ func (self *OpencensusViews_t) HitBegin(ctx context.Context, page string) (err e
 	return
 }
 
-func (self *OpencensusViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (self *OpencensusViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
 	var name, errs strings.Builder
 	ctx, err = tag.New(ctx,
 		tag.Upsert(self.tagPage, PrintableAscii(page, &name, 255).String()),
 		tag.Upsert(self.tagError, PrintableAscii(errors, &errs, 255).String()),
-		tag.Upsert(self.tagStatus, strconv.FormatInt(int64(status), 10)),
+		tag.Upsert(self.tagStatus, status),
 	)
 	if err != nil {
 		return
@@ -157,6 +156,6 @@ func (*NoViews_t) HitBegin(ctx context.Context, page string) (err error) {
 	return
 }
 
-func (*NoViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status int, errors string) (err error) {
+func (*NoViews_t) HitEnd(ctx context.Context, page string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
 	return
 }
