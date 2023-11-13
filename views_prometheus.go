@@ -83,17 +83,17 @@ func (self *Prometheus_t) HitEnd(ctx context.Context, page string, entry string,
 	if err != nil {
 		return
 	}
-	if len(errors) > 0 {
-		var _error prometheus.Counter
-		_error, err = self.Error.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "error": errors})
-		if err != nil {
-			return
-		}
-		_error.Add(float64(processed))
+	_error, err := self.Error.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "error": errors})
+	if err != nil {
+		return
 	}
+
 	_pending.Add(-1)
 	_processed.Add(float64(processed))
 	_latency.Set(float64(median))
 	_latency_size.Set(float64(median_size))
+	if len(errors) > 0 {
+		_error.Add(float64(processed))
+	}
 	return
 }
