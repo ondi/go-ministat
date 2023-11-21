@@ -13,7 +13,6 @@ import (
 )
 
 func Args(out io.Writer, args ...interface{}) {
-	var n int
 	for i, v := range args {
 		if i > 0 {
 			fmt.Fprintf(out, ",")
@@ -25,12 +24,11 @@ func Args(out io.Writer, args ...interface{}) {
 		}
 		switch data := v.(type) {
 		case []uint8, json.RawMessage:
-			n, _ = fmt.Fprintf(out, "%s", data)
+			fmt.Fprintf(out, "'%s'", data)
+		case string:
+			fmt.Fprintf(out, "'%s'", data)
 		default:
-			n, _ = fmt.Fprintf(out, "%+v", data)
-		}
-		if n == 0 {
-			return
+			fmt.Fprintf(out, "%+v", data)
 		}
 	}
 }
