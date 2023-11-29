@@ -61,7 +61,7 @@ func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, evi
 	return
 }
 
-func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
+func (self *Storage_t) HitBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -78,7 +78,7 @@ func (self *Storage_t) MetricBegin(name string, begin time.Time) (counter *Count
 	return
 }
 
-func (self *Storage_t) MetricEnd(counter *Counter_t, name string, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
+func (self *Storage_t) HitEnd(counter *Counter_t, name string, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
@@ -89,7 +89,7 @@ func (self *Storage_t) MetricEnd(counter *Counter_t, name string, begin time.Tim
 	return
 }
 
-func (self *Storage_t) MetricGet(name string, ts time.Time) (out Result_t, ok bool) {
+func (self *Storage_t) HitGet(name string, ts time.Time) (out Result_t, ok bool) {
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {

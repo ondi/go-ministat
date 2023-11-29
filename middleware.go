@@ -91,7 +91,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, sampling, pending := self.storage.MetricBegin(page, ts)
+	counter, sampling, pending := self.storage.HitBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
 	err := self.views.HitBegin(r.Context(), page, "")
 	if err != nil {
@@ -105,7 +105,7 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, name string, start time.Time, writer *ResponseWriter_t) {
-	median, size := self.storage.MetricEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
+	median, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var sb bytes.Buffer
 	self.errors(ctx, &sb)
 	err := self.views.HitEnd(ctx, name, "", median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), sb.String())

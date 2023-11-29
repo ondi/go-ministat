@@ -10,6 +10,7 @@ import (
 	"github.com/ondi/go-cache"
 )
 
+// value will be compared with greater and less operators
 type Number interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
