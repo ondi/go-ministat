@@ -13,24 +13,24 @@ import (
 )
 
 type Counter_t struct {
-	median        *Median_t[time.Duration]
-	begin_last_ts time.Time
-	last_median   time.Duration
-	sampling      int64
-	hits          int64
-	pending       int64
-	processed     int64
-	errors        int64
+	median          *Median_t[time.Duration]
+	recent_begin_ts time.Time
+	recent_median   time.Duration
+	sampling        int64
+	hits            int64
+	pending         int64
+	processed       int64
+	errors          int64
 }
 
 type Result_t struct {
-	Hits         int64
-	Pending      int64
-	Processed    int64
-	Errors       int64
-	BeginLastTs  time.Time
-	Duration     time.Duration
-	DurationSize int
+	Hits          int64
+	Pending       int64
+	Processed     int64
+	Errors        int64
+	RecentBeginTs time.Time
+	Duration      time.Duration
+	DurationSize  int
 }
 
 type Less_t = cache.Less_t[string, *Counter_t]
@@ -73,7 +73,7 @@ func (self *Storage_t) HitBegin(name string, begin time.Time) (counter *Counter_
 	)
 	counter.hits++
 	counter.pending++
-	counter.begin_last_ts, sampling, pending = begin, counter.sampling, counter.pending
+	counter.recent_begin_ts, sampling, pending = begin, counter.sampling, counter.pending
 	self.mx.Unlock()
 	return
 }
@@ -83,8 +83,8 @@ func (self *Storage_t) HitEnd(counter *Counter_t, name string, begin time.Time, 
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
-	counter.last_median, size = counter.median.Add(end, end.Sub(begin))
-	duration = counter.last_median
+	counter.recent_median, size = counter.median.Add(end, end.Sub(begin))
+	duration = counter.recent_median
 	self.mx.Unlock()
 	return
 }
@@ -138,12 +138,12 @@ func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Co
 
 func ToResult(in *Counter_t, ts time.Time) Result_t {
 	return Result_t{
-		Hits:         in.hits,
-		Pending:      in.pending,
-		Processed:    in.processed,
-		Errors:       in.errors,
-		BeginLastTs:  in.begin_last_ts,
-		Duration:     in.last_median,
-		DurationSize: in.median.Evict(ts),
+		Hits:          in.hits,
+		Pending:       in.pending,
+		Processed:     in.processed,
+		Errors:        in.errors,
+		RecentBeginTs: in.recent_begin_ts,
+		Duration:      in.recent_median,
+		DurationSize:  in.median.Evict(ts),
 	}
 }
