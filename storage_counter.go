@@ -13,24 +13,23 @@ import (
 )
 
 type Counter_t struct {
-	median          *Median_t[time.Duration]
-	recent_begin_ts time.Time
-	recent_median   time.Duration
-	sampling        int64
-	hits            int64
-	pending         int64
-	processed       int64
-	errors          int64
+	median    *Median_t[time.Duration]
+	begin_ts  time.Time
+	sampling  int64
+	hits      int64
+	pending   int64
+	processed int64
+	errors    int64
 }
 
 type Result_t struct {
-	Hits          int64
-	Pending       int64
-	Processed     int64
-	Errors        int64
-	RecentBeginTs time.Time
-	Duration      time.Duration
-	DurationSize  int
+	Hits         int64
+	Pending      int64
+	Processed    int64
+	Errors       int64
+	BeginTs      time.Time
+	Duration     time.Duration
+	DurationSize int
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -71,7 +70,7 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	)
 	counter.hits++
 	counter.pending++
-	counter.recent_begin_ts, sampling, pending = begin, counter.sampling, counter.pending
+	counter.begin_ts, sampling, pending = begin, counter.sampling, counter.pending
 	self.mx.Unlock()
 	return
 }
@@ -81,8 +80,7 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
-	counter.recent_median, size = counter.median.Add(end, end.Sub(begin))
-	duration = counter.recent_median
+	duration, size = counter.median.Add(end, end.Sub(begin))
 	self.mx.Unlock()
 	return
 }
@@ -134,14 +132,12 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 	return a.Value.median.median.Value.Data < b.Value.median.median.Value.Data
 }
 
-func ToResult(in *Counter_t, ts time.Time) Result_t {
-	return Result_t{
-		Hits:          in.hits,
-		Pending:       in.pending,
-		Processed:     in.processed,
-		Errors:        in.errors,
-		RecentBeginTs: in.recent_begin_ts,
-		Duration:      in.recent_median,
-		DurationSize:  in.median.Evict(ts),
-	}
+func ToResult(in *Counter_t, ts time.Time) (res Result_t) {
+	res.Hits = in.hits
+	res.Pending = in.pending
+	res.Processed = in.processed
+	res.Errors = in.errors
+	res.BeginTs = in.begin_ts
+	res.Duration, res.DurationSize = in.median.Value(ts)
+	return
 }

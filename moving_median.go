@@ -130,8 +130,9 @@ func (self *Median_t[T]) begin() (begin int) {
 	return
 }
 
-func (self *Median_t[T]) Value(ts time.Time) (value T, count int) {
-	count, value = self.Evict(ts), self.median.Value.Data
+func (self *Median_t[T]) Value(ts time.Time) (value T, size int) {
+	size = self.Evict(ts)
+	value = self.median.Value.Data
 	return
 }
 
