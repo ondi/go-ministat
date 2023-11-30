@@ -118,6 +118,10 @@ func (self *Storage_t[Key_t]) Range(ts time.Time, f func(name Key_t, res Result_
 	self.mx.Unlock()
 }
 
+type Less_t[Key_t comparable] struct {
+	cache.Less_t[Key_t, *Counter_t]
+}
+
 func LessHits[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.hits < b.Value.hits
 }
