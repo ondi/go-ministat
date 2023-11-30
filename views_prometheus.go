@@ -1,5 +1,5 @@
 //
-//
+// for Page_t only
 //
 
 package ministat
@@ -22,7 +22,7 @@ type Prometheus_t struct {
 
 // import "github.com/prometheus/client_golang/prometheus/promhttp"
 // mux.Handle("/debug/metrics", promhttp.Handler())
-func NewPrometheusViews(prefix string) (views Views, err error) {
+func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	self := &Prometheus_t{
 		Request:           prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "request"}, []string{"page", "entry"}),
 		Pending:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "pending"}, []string{"page", "entry"}),
@@ -52,12 +52,12 @@ func NewPrometheusViews(prefix string) (views Views, err error) {
 	return self, err
 }
 
-func (self *Prometheus_t) HitBegin(ctx context.Context, page string, entry string) (err error) {
-	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
+func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t) (err error) {
+	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
 	}
-	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
+	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
 	}
@@ -66,24 +66,24 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page string, entry strin
 	return
 }
 
-func (self *Prometheus_t) HitEnd(ctx context.Context, page string, entry string, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
-	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
+func (self *Prometheus_t) HitEnd(ctx context.Context, page Page_t, median time.Duration, median_size int, processed int64, status string, errors string) (err error) {
+	_pending, err := self.Pending.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
 	}
-	_processed, err := self.Processed.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "status": status})
+	_processed, err := self.Processed.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry, "status": status})
 	if err != nil {
 		return
 	}
-	_latency, err := self.LatencyMedian.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
+	_latency, err := self.LatencyMedian.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
 	}
-	_latency_size, err := self.LatencyMedianSize.GetMetricWith(prometheus.Labels{"page": page, "entry": entry})
+	_latency_size, err := self.LatencyMedianSize.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
 	}
-	_error, err := self.Error.GetMetricWith(prometheus.Labels{"page": page, "entry": entry, "error": errors})
+	_error, err := self.Error.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry, "error": errors})
 	if err != nil {
 		return
 	}
@@ -95,5 +95,20 @@ func (self *Prometheus_t) HitEnd(ctx context.Context, page string, entry string,
 	if len(errors) > 0 {
 		_error.Add(float64(processed))
 	}
+	return
+}
+
+func (self *Prometheus_t) HitReset(ctx context.Context, page Page_t, median time.Duration, median_size int) (err error) {
+	_latency, err := self.LatencyMedian.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
+	if err != nil {
+		return
+	}
+	_latency_size, err := self.LatencyMedianSize.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
+	if err != nil {
+		return
+	}
+
+	_latency.Set(float64(median))
+	_latency_size.Set(float64(median_size))
 	return
 }

@@ -14,12 +14,19 @@ import (
 	"time"
 )
 
-type Views interface {
-	HitBegin(ctx context.Context, page string, entry string) (err error)
-	HitEnd(ctx context.Context, page string, entry string, median time.Duration, median_size int, processed int64, status string, errors string) (err error)
+// Key_t for storage
+type Page_t struct {
+	Name  string // page name
+	Entry string // for shards or something else
 }
 
-type PageName_t func(*http.Request) string
+type Views[Key_t comparable] interface {
+	HitBegin(ctx context.Context, page Key_t) (err error)
+	HitEnd(ctx context.Context, page Key_t, median time.Duration, median_size int, processed int64, status string, errors string) (err error)
+	HitReset(ctx context.Context, page Key_t, median time.Duration, median_size int) (err error)
+}
+
+type PageName_t[Key_t comparable] func(*http.Request) Key_t
 type LogCtx_t func(ctx context.Context, format string, args ...interface{})
 type GetErr_t func(ctx context.Context, out io.Writer)
 
@@ -46,8 +53,11 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
-func GetPageName(r *http.Request) string {
-	return r.URL.Path
+func GetPageName(r *http.Request) Page_t {
+	return Page_t{
+		Name:  r.URL.Path,
+		Entry: "",
+	}
 }
 
 func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
@@ -63,19 +73,19 @@ func CountErrors(status_code int) int64 {
 	return 0
 }
 
-type Middleware_t struct {
-	storage       *Storage_t
+type Middleware_t[Key_t comparable] struct {
+	storage       *Storage_t[Key_t]
 	ok            http.Handler
 	not_ok        http.Handler
-	page_name     PageName_t
+	page_name     PageName_t[Key_t]
 	log           LogCtx_t
 	errors        GetErr_t
-	views         Views
+	views         Views[Key_t]
 	pending_limit int64
 }
 
-func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views, page_name PageName_t, pending_limit int64) *Middleware_t {
-	return &Middleware_t{
+func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views[Key_t], page_name PageName_t[Key_t], pending_limit int64) *Middleware_t[Key_t] {
+	return &Middleware_t[Key_t]{
 		storage:       storage,
 		ok:            ok,
 		not_ok:        not_ok,
@@ -87,13 +97,13 @@ func NewMiddleware(storage *Storage_t, ok http.Handler, not_ok http.Handler, err
 	}
 }
 
-func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending := self.storage.HitBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
-	err := self.views.HitBegin(r.Context(), page, "")
+	err := self.views.HitBegin(r.Context(), page)
 	if err != nil {
 		self.log(r.Context(), "MINISTAT: %v %q", err, page)
 	}
@@ -104,11 +114,11 @@ func (self *Middleware_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (self *Middleware_t) serve_done(ctx context.Context, counter *Counter_t, name string, start time.Time, writer *ResponseWriter_t) {
+func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
 	median, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var sb bytes.Buffer
 	self.errors(ctx, &sb)
-	err := self.views.HitEnd(ctx, name, "", median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), sb.String())
+	err := self.views.HitEnd(ctx, name, median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), sb.String())
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}

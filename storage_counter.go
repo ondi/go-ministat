@@ -33,8 +33,6 @@ type Result_t struct {
 	DurationSize  int
 }
 
-type Less_t = cache.Less_t[string, *Counter_t]
-
 func (self *Counter_t) CounterAdd(a int64) {
 	self.sampling += a
 }
@@ -43,17 +41,17 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
-func NoEvict(page string, value *Counter_t) {}
+func NoEvict[Key_t comparable](page Key_t, value *Counter_t) {}
 
-type Storage_t struct {
+type Storage_t[Key_t comparable] struct {
 	mx           sync.Mutex
-	pages        *unique.Often_t[*Counter_t]
+	pages        *unique.Often_t[Key_t, *Counter_t]
 	median_ttl   time.Duration
 	median_limit int
 }
 
-func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, evict func(page string, value *Counter_t)) (self *Storage_t) {
-	self = &Storage_t{
+func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl time.Duration, evict func(page Key_t, value *Counter_t)) (self *Storage_t[Key_t]) {
+	self = &Storage_t[Key_t]{
 		pages:        unique.NewOften(limit_pages, evict),
 		median_ttl:   median_ttl,
 		median_limit: median_limit,
@@ -61,7 +59,7 @@ func NewStorage(limit_pages int, median_limit int, median_ttl time.Duration, evi
 	return
 }
 
-func (self *Storage_t) HitBegin(name string, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
+func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
@@ -78,7 +76,7 @@ func (self *Storage_t) HitBegin(name string, begin time.Time) (counter *Counter_
 	return
 }
 
-func (self *Storage_t) HitEnd(counter *Counter_t, name string, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
@@ -89,7 +87,7 @@ func (self *Storage_t) HitEnd(counter *Counter_t, name string, begin time.Time, 
 	return
 }
 
-func (self *Storage_t) HitGet(name string, ts time.Time) (out Result_t, ok bool) {
+func (self *Storage_t[Key_t]) HitGet(name Key_t, ts time.Time) (out Result_t, ok bool) {
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {
@@ -99,41 +97,37 @@ func (self *Storage_t) HitGet(name string, ts time.Time) (out Result_t, ok bool)
 	return
 }
 
-func (self *Storage_t) RangeSort(order Less_t, ts time.Time, f func(name string, res Result_t) bool) {
+func (self *Storage_t[Key_t]) RangeSort(order cache.Less_t[Key_t, *Counter_t], ts time.Time, f func(name Key_t, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.RangeSort(
 		order,
-		func(key string, value *Counter_t) bool {
+		func(key Key_t, value *Counter_t) bool {
 			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
 }
 
-func (self *Storage_t) Range(ts time.Time, f func(name string, res Result_t) bool) {
+func (self *Storage_t[Key_t]) Range(ts time.Time, f func(name Key_t, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.Range(
-		func(key string, value *Counter_t) bool {
+		func(key Key_t, value *Counter_t) bool {
 			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
 }
 
-func LessHits(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+func LessHits[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.hits < b.Value.hits
 }
 
-func LessProcessed(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+func LessProcessed[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.processed < b.Value.processed
 }
 
-func LessDuration(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
+func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.median.median.Value.Data < b.Value.median.median.Value.Data
-}
-
-func LessName(a *cache.Value_t[string, *Counter_t], b *cache.Value_t[string, *Counter_t]) bool {
-	return a.Key < b.Key
 }
 
 func ToResult(in *Counter_t, ts time.Time) Result_t {
