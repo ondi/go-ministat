@@ -56,18 +56,22 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 }
 
 type ResponseLogger_t struct {
-	next    http.Handler
-	log     LogCtx_t
-	errors  GetErr_t
-	exclude *tst.Tree1_t[int]
+	next       http.Handler
+	log        LogCtx_t
+	errors     GetErr_t
+	req_limit  int
+	resp_limit int
+	exclude    *tst.Tree1_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
-		next:    next,
-		log:     log,
-		errors:  errors,
-		exclude: &tst.Tree1_t[int]{},
+		next:       next,
+		log:        log,
+		errors:     errors,
+		req_limit:  req_limit,
+		resp_limit: resp_limit,
+		exclude:    &tst.Tree1_t[int]{},
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
@@ -77,8 +81,8 @@ func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, excluse
 
 func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var writer_buf, reader_buf bytes.Buffer
-	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Buf: &writer_buf, Limit: 1024}}
-	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Buf: &reader_buf, Limit: 1024}}
+	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Buf: &writer_buf, Limit: self.resp_limit}}
+	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Buf: &reader_buf, Limit: self.req_limit}}
 	r.Body = &reader
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
