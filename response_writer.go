@@ -61,7 +61,7 @@ type ResponseLogger_t struct {
 	errors     GetErr_t
 	req_limit  int
 	resp_limit int
-	exclude    *tst.Tree1_t[int]
+	exclude    *tst.Tree3_t[int]
 }
 
 func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
@@ -71,7 +71,7 @@ func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, req_lim
 		errors:     errors,
 		req_limit:  req_limit,
 		resp_limit: resp_limit,
-		exclude:    &tst.Tree1_t[int]{},
+		exclude:    tst.NewTree3[int](),
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
