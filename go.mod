@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20240405105826-c7c0996f0234
+	github.com/ondi/go-tst v0.0.0-20240405115148-11348772f7fd
 	github.com/ondi/go-unique v0.0.0-20231130094016-195652c55cd2
 	github.com/prometheus/client_golang v1.19.0
 	gotest.tools v2.2.0+incompatible
