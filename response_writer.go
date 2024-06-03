@@ -86,7 +86,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	r.Body = &reader
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
-		self.log(r.Context(), "REQUEST: %v", r.URL.String())
+		self.log(r.Context(), "REQUEST: %s", r.URL.String())
 	}
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
@@ -98,7 +98,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				errors = temp[0]
 			}
 		}
-		self.log(r.Context(), "RESPONSE: %v status=%d resp=%#q, req=%#q, errors=%s",
+		self.log(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
 			r.URL.String(), writer.status_code, writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}
 }
