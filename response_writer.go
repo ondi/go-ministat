@@ -98,7 +98,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				errors = temp[0]
 			}
 		}
-		self.log(r.Context(), "RESPONSE: %v status=%d resp='%s', req='%s', errors=%s",
-			r.URL.String(), writer.status_code, bytes.TrimRight(writer_buf.Bytes(), "\r\n\t\v"), bytes.TrimRight(reader_buf.Bytes(), "\r\n\t\v"), errors)
+		self.log(r.Context(), "RESPONSE: %v status=%d resp=%q, req=%q, errors=%s",
+			r.URL.String(), writer.status_code, writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}
 }
