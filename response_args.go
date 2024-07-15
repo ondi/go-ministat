@@ -12,13 +12,21 @@ import (
 	"unicode/utf8"
 )
 
+type ValueFunc interface {
+	Value() (driver.Value, error)
+}
+
 func Args(out io.Writer, args ...interface{}) {
 	for i, v := range args {
 		if i > 0 {
 			fmt.Fprintf(out, ",")
 		}
-		if temp, _ := v.(interface{ Value() (driver.Value, error) }); temp != nil {
+		if temp, ok := v.(ValueFunc); ok {
 			if value, err := temp.Value(); err == nil {
+				v = value
+			}
+		} else if temp, ok := v.(*ValueFunc); ok {
+			if value, err := (*temp).Value(); err == nil {
 				v = value
 			}
 		}
