@@ -57,18 +57,18 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 
 type ResponseLogger_t struct {
 	next       http.Handler
-	log        LogCtxSet_t
-	errors     LogCtxGet_t
+	log        WriteLog_t
+	log_msg    LogCtxGet_t
 	req_limit  int
 	resp_limit int
 	exclude    *tst.Tree3_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log LogCtxSet_t, errors LogCtxGet_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log WriteLog_t, log_msg LogCtxGet_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:       next,
 		log:        log,
-		errors:     errors,
+		log_msg:    log_msg,
 		req_limit:  req_limit,
 		resp_limit: resp_limit,
 		exclude:    tst.NewTree3[int](),
@@ -91,13 +91,14 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
 		var errors string
-		if temp := self.errors(r.Context()); temp != nil && temp.Len() > 0 {
-			if ix := strings.Index(temp.Format(0), " "); ix > -1 {
-				errors = temp.Format(0)[:ix]
+		self.log_msg(r.Context(), func(level string, format string, args ...any) bool {
+			if ix := strings.Index(format, " "); ix > -1 {
+				errors = format[:ix]
 			} else {
-				errors = temp.Format(0)
+				errors = format
 			}
-		}
+			return false
+		})
 		self.log(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
 			r.URL.String(), writer.status_code, writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}
