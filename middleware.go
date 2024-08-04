@@ -24,17 +24,23 @@ type Views[Key_t comparable] interface {
 	HitReset(ctx context.Context, page Key_t, median time.Duration, median_size int) (err error)
 }
 
+type LogMsgList_t interface {
+	Len() int
+	Format(i int) string
+	Args(i int) []any
+}
+
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
-type LogCtx_t func(ctx context.Context, format string, args ...interface{})
-type GetErr_t func(ctx context.Context) []string
+type LogCtxSet_t func(ctx context.Context, format string, args ...interface{})
+type LogCtxGet_t func(ctx context.Context) LogMsgList_t
 
 type _429_t struct {
-	log  LogCtx_t
+	log  LogCtxSet_t
 	ts   time.Time
 	diff time.Duration
 }
 
-func New429(log LogCtx_t, diff time.Duration) http.Handler {
+func New429(log LogCtxSet_t, diff time.Duration) http.Handler {
 	self := &_429_t{
 		log:  log,
 		diff: diff,
@@ -76,13 +82,13 @@ type Middleware_t[Key_t comparable] struct {
 	ok            http.Handler
 	not_ok        http.Handler
 	page_name     PageName_t[Key_t]
-	log           LogCtx_t
-	errors        GetErr_t
+	log           LogCtxSet_t
+	errors        LogCtxGet_t
 	views         Views[Key_t]
 	pending_limit int64
 }
 
-func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], ok http.Handler, not_ok http.Handler, errors GetErr_t, log LogCtx_t, views Views[Key_t], page_name PageName_t[Key_t], pending_limit int64) *Middleware_t[Key_t] {
+func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], ok http.Handler, not_ok http.Handler, errors LogCtxGet_t, log LogCtxSet_t, views Views[Key_t], page_name PageName_t[Key_t], pending_limit int64) *Middleware_t[Key_t] {
 	return &Middleware_t[Key_t]{
 		storage:       storage,
 		ok:            ok,
@@ -115,11 +121,11 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
 	median, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
-	if temp := self.errors(ctx); len(temp) > 0 {
-		if ix := strings.Index(temp[0], " "); ix > -1 {
-			errors = temp[0][:ix]
+	if temp := self.errors(ctx); temp != nil && temp.Len() > 0 {
+		if ix := strings.Index(temp.Format(0), " "); ix > -1 {
+			errors = temp.Format(0)[:ix]
 		} else {
-			errors = temp[0]
+			errors = temp.Format(0)
 		}
 	}
 	err := self.views.HitEnd(ctx, name, median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), errors)

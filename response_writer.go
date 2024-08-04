@@ -57,14 +57,14 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 
 type ResponseLogger_t struct {
 	next       http.Handler
-	log        LogCtx_t
-	errors     GetErr_t
+	log        LogCtxSet_t
+	errors     LogCtxGet_t
 	req_limit  int
 	resp_limit int
 	exclude    *tst.Tree3_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log LogCtx_t, errors GetErr_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log LogCtxSet_t, errors LogCtxGet_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:       next,
 		log:        log,
@@ -91,11 +91,11 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
 		var errors string
-		if temp := self.errors(r.Context()); len(temp) > 0 {
-			if ix := strings.Index(temp[0], " "); ix > -1 {
-				errors = temp[0][:ix]
+		if temp := self.errors(r.Context()); temp != nil && temp.Len() > 0 {
+			if ix := strings.Index(temp.Format(0), " "); ix > -1 {
+				errors = temp.Format(0)[:ix]
 			} else {
-				errors = temp[0]
+				errors = temp.Format(0)
 			}
 		}
 		self.log(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
