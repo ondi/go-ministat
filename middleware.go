@@ -26,7 +26,7 @@ type Views[Key_t comparable] interface {
 
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
 type WriteLog_t func(ctx context.Context, format string, args ...interface{})
-type LogCtxGet_t func(ctx context.Context, f func(level string, format string, args ...any) bool)
+type LogCtxGet_t func(ctx context.Context, f func(level int64, format string, args ...any) bool)
 
 type _429_t struct {
 	log  WriteLog_t
@@ -115,7 +115,10 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
 	median, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
-	self.log_msg(ctx, func(level string, format string, args ...any) bool {
+	self.log_msg(ctx, func(level int64, format string, args ...any) bool {
+		if level < 3 {
+			return true
+		}
 		if ix := strings.Index(format, " "); ix > -1 {
 			errors = format[:ix]
 		} else {

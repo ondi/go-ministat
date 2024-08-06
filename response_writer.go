@@ -91,7 +91,10 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
 		var errors string
-		self.log_msg(r.Context(), func(level string, format string, args ...any) bool {
+		self.log_msg(r.Context(), func(level int64, format string, args ...any) bool {
+			if level < 3 {
+				return true
+			}
 			if ix := strings.Index(format, " "); ix > -1 {
 				errors = format[:ix]
 			} else {
