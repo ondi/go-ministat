@@ -26,8 +26,7 @@ type Views[Key_t comparable] interface {
 
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
 type WriteLog_t func(ctx context.Context, format string, args ...interface{})
-type LogRangeFn_t func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool
-type LogCtxGet_t func(ctx context.Context, f LogRangeFn_t)
+type LogCtxGet_t func(ctx context.Context, f func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool)
 
 type _429_t struct {
 	log  WriteLog_t
