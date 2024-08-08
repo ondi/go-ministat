@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ondi/go-tst"
 )
@@ -91,8 +92,8 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
 		var errors string
-		self.log_msg(r.Context(), func(level int64, format string, args ...any) bool {
-			if level < 3 {
+		self.log_msg(r.Context(), func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
+			if level_id < 3 {
 				return true
 			}
 			if ix := strings.Index(format, " "); ix > -1 {
