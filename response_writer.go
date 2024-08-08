@@ -34,6 +34,12 @@ func (self *ResponseWriter_t) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("not a http.Hijacker")
 }
 
+func (self *ResponseWriter_t) Flush() {
+	if h, ok := self.ResponseWriter.(http.Flusher); ok {
+		h.Flush()
+	}
+}
+
 type Writer_t struct {
 	ResponseWriter_t
 	LimitWriter_t
