@@ -13,14 +13,16 @@ import (
 )
 
 type Counter_t struct {
-	median           *Median_t[time.Duration]
-	hit_begin_ts     time.Time
-	hit_end_duration time.Duration
-	sampling         int64
-	hits             int64
-	pending          int64
-	processed        int64
-	errors           int64
+	median          *Median_t[time.Duration]
+	average         *Average_t[time.Duration]
+	hit_begin_ts    time.Time
+	hit_end_median  time.Duration
+	hit_end_average time.Duration
+	sampling        int64
+	hits            int64
+	pending         int64
+	processed       int64
+	errors          int64
 }
 
 type Result_t struct {
@@ -66,7 +68,8 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
-				median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				average: NewAverage[time.Duration](self.median_limit, self.median_ttl),
 			}
 		},
 	)
@@ -77,13 +80,16 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (duration time.Duration, size int) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (median time.Duration, median_size int, average time.Duration, average_size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
-	duration, size = counter.median.Add(end, end.Sub(begin))
-	counter.hit_end_duration = duration
+	diff := end.Sub(begin)
+	median, median_size = counter.median.Add(end, diff)
+	average, average_size = counter.average.Add(end, diff)
+	counter.hit_end_median = median
+	counter.hit_end_average = average
 	self.mx.Unlock()
 	return
 }
@@ -141,7 +147,7 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.HitEndDuration = in.hit_end_duration
+	out.HitEndDuration = in.hit_end_median
 	out.Duration, out.DurationSize = in.median.Value(ts)
 	return
 }

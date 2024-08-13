@@ -113,7 +113,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 }
 
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
-	median, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
+	median, median_size, _, _ := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
 	self.log_msg(ctx, func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 		if level_id < 3 {
@@ -126,7 +126,7 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		}
 		return false
 	})
-	err := self.views.HitEnd(ctx, name, median, size, 1, strconv.FormatInt(int64(writer.status_code), 10), errors)
+	err := self.views.HitEnd(ctx, name, median, median_size, 1, strconv.FormatInt(int64(writer.status_code), 10), errors)
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}
