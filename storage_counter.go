@@ -26,14 +26,17 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Hits           int64
-	Pending        int64
-	Processed      int64
-	Errors         int64
-	HitBeginTs     time.Time
-	HitEndDuration time.Duration
-	Duration       time.Duration
-	DurationSize   int
+	Hits          int64
+	Pending       int64
+	Processed     int64
+	Errors        int64
+	HitBeginTs    time.Time
+	HitEndMedian  time.Duration
+	HitEndAverage time.Duration
+	Median        time.Duration
+	Average       time.Duration
+	MedianSize    int
+	AverageSize   int
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -147,7 +150,9 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.HitEndDuration = in.hit_end_median
-	out.Duration, out.DurationSize = in.median.Value(ts)
+	out.HitEndMedian = in.hit_end_median
+	out.HitEndAverage = in.hit_end_average
+	out.Median, out.MedianSize = in.median.Value(ts)
+	out.Average, out.AverageSize = in.average.Value(ts)
 	return
 }
