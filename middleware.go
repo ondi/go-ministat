@@ -18,15 +18,10 @@ type Page_t struct {
 	Entry string // shard
 }
 
-type Duration_t struct {
-	Duration time.Duration
-	Size     int
-}
-
 type Views[Key_t comparable] interface {
 	HitBegin(ctx context.Context, page Key_t) (err error)
-	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, dur ...Duration_t) (err error)
-	HitReset(ctx context.Context, page Key_t, dur ...Duration_t) (err error)
+	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, size int, dur ...time.Duration) (err error)
+	HitReset(ctx context.Context, page Key_t, size int, dur ...time.Duration) (err error)
 }
 
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
@@ -118,7 +113,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 }
 
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
-	dur := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
+	median, avg, size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
 	self.log_msg(ctx, func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 		if level_id < 3 {
@@ -131,7 +126,7 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		}
 		return false
 	})
-	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, dur[:]...)
+	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, size, median, avg)
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}

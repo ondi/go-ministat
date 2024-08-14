@@ -13,8 +13,8 @@ import (
 )
 
 type Counter_t struct {
-	median          *Median_t[time.Duration]
-	average         *Average_t[time.Duration]
+	median *Median_t[time.Duration]
+	// average         *Average_t[time.Duration]
 	hit_begin_ts    time.Time
 	hit_end_median  time.Duration
 	hit_end_average time.Duration
@@ -36,7 +36,6 @@ type Result_t struct {
 	Median        time.Duration
 	Average       time.Duration
 	MedianSize    int
-	AverageSize   int
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -71,8 +70,8 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
-				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				average: NewAverage[time.Duration](self.median_limit, self.median_ttl),
+				median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				// average: NewAverage[time.Duration](self.median_limit, self.median_ttl),
 			}
 		},
 	)
@@ -83,16 +82,15 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (out [2]Duration_t) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (median time.Duration, avg time.Duration, size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
 	diff := end.Sub(begin)
-	out[0].Duration, out[0].Size = counter.median.Add(end, diff)
-	out[1].Duration, out[1].Size = counter.average.Add(end, diff)
-	counter.hit_end_median = out[0].Duration
-	counter.hit_end_average = out[1].Duration
+	median, avg, size = counter.median.Add(end, diff)
+	counter.hit_end_median = median
+	counter.hit_end_average = avg
 	self.mx.Unlock()
 	return
 }
@@ -152,7 +150,6 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.HitBeginTs = in.hit_begin_ts
 	out.HitEndMedian = in.hit_end_median
 	out.HitEndAverage = in.hit_end_average
-	out.Median, out.MedianSize = in.median.Value(ts)
-	out.Average, out.AverageSize = in.average.Value(ts)
+	out.Median, out.Average, out.MedianSize = in.median.Value(ts)
 	return
 }
