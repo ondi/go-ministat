@@ -15,13 +15,18 @@ import (
 // Key_t for storage
 type Page_t struct {
 	Name  string // page name
-	Entry string // for shards or something else
+	Entry string // shard
+}
+
+type Duration_t struct {
+	Duration time.Duration
+	Size     int
 }
 
 type Views[Key_t comparable] interface {
 	HitBegin(ctx context.Context, page Key_t) (err error)
-	HitEnd(ctx context.Context, page Key_t, median time.Duration, median_size int, processed int64, status string, errors string) (err error)
-	HitReset(ctx context.Context, page Key_t, median time.Duration, median_size int) (err error)
+	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, dur ...Duration_t) (err error)
+	HitReset(ctx context.Context, page Key_t, dur ...Duration_t) (err error)
 }
 
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
@@ -113,7 +118,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 }
 
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
-	median, median_size, _, _ := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
+	median, median_size, average, average_size := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
 	self.log_msg(ctx, func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 		if level_id < 3 {
@@ -126,7 +131,10 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		}
 		return false
 	})
-	err := self.views.HitEnd(ctx, name, median, median_size, 1, strconv.FormatInt(int64(writer.status_code), 10), errors)
+	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors,
+		Duration_t{Duration: median, Size: median_size},
+		Duration_t{Duration: average, Size: average_size},
+	)
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}
