@@ -57,7 +57,11 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, int) {
 			p.Ts = ts
 			p.Data = data
 		},
-		func(p *MedianMapped_t[T]) {},
+		func(p *MedianMapped_t[T]) {
+			self.avg -= p.Data
+			p.Ts = ts
+			p.Data = data
+		},
 	)
 	if inserted {
 		if self.cx.Size() == 1 {
@@ -87,8 +91,6 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, int) {
 				self.right--
 			}
 		}
-		it.Value.Ts = ts
-		it.Value.Data = data
 	}
 	// insert value into sorted list
 	at := self.median
