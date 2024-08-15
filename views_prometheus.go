@@ -18,7 +18,7 @@ type Prometheus_t struct {
 	Error             *prometheus.CounterVec
 	LatencyMedian     *prometheus.GaugeVec
 	LatencyMedianSize *prometheus.GaugeVec
-	LatencyAverage    *prometheus.GaugeVec
+	Latency           *prometheus.GaugeVec // label with type: avg, med, etc
 }
 
 // import "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,7 +31,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 		Error:             prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "error"}, []string{"page", "entry", "error"}),
 		LatencyMedian:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median"}, []string{"page", "entry"}),
 		LatencyMedianSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_median_size"}, []string{"page", "entry"}),
-		LatencyAverage:    prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency_average"}, []string{"page", "entry"}),
+		Latency:           prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency"}, []string{"type", "page", "entry"}),
 	}
 	if err = prometheus.Register(self.Request); err != nil {
 		return
@@ -51,7 +51,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	if err = prometheus.Register(self.LatencyMedianSize); err != nil {
 		return
 	}
-	if err = prometheus.Register(self.LatencyAverage); err != nil {
+	if err = prometheus.Register(self.Latency); err != nil {
 		return
 	}
 	return self, err
@@ -88,26 +88,33 @@ func (self *Prometheus_t) HitEnd(ctx context.Context, page Page_t, processed int
 	if err != nil {
 		return
 	}
-	_latency_average, err := self.LatencyAverage.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
-	if err != nil {
-		return
-	}
 	_error, err := self.Error.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry, "error": errors})
 	if err != nil {
 		return
 	}
 
-	_pending.Add(-1)
-	_processed.Add(float64(processed))
-	_latency_median_size.Set(float64(size))
+	var _latency prometheus.Gauge
 	for i, v := range dur {
 		switch i {
 		case 0:
+			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": "med", "page": page.Name, "entry": page.Entry})
+			if err != nil {
+				return
+			}
+			_latency.Set(float64(v))
 			_latency_median.Set(float64(v))
 		case 1:
-			_latency_average.Set(float64(v))
+			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": "avg", "page": page.Name, "entry": page.Entry})
+			if err != nil {
+				return
+			}
+			_latency.Set(float64(v))
 		}
 	}
+
+	_pending.Add(-1)
+	_processed.Add(float64(processed))
+	_latency_median_size.Set(float64(size))
 	if len(errors) > 0 {
 		_error.Add(float64(processed))
 	}
@@ -123,19 +130,26 @@ func (self *Prometheus_t) HitReset(ctx context.Context, page Page_t, size int, d
 	if err != nil {
 		return
 	}
-	_latency_average, err := self.LatencyAverage.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
-	if err != nil {
-		return
-	}
 
-	_latency_median_size.Set(float64(size))
+	var _latency prometheus.Gauge
 	for i, v := range dur {
 		switch i {
 		case 0:
+			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": "med", "page": page.Name, "entry": page.Entry})
+			if err != nil {
+				return
+			}
+			_latency.Set(float64(v))
 			_latency_median.Set(float64(v))
 		case 1:
-			_latency_average.Set(float64(v))
+			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": "avg", "page": page.Name, "entry": page.Entry})
+			if err != nil {
+				return
+			}
+			_latency.Set(float64(v))
 		}
 	}
+
+	_latency_median_size.Set(float64(size))
 	return
 }
