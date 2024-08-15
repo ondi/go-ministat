@@ -125,21 +125,6 @@ func (self *Median_t[T]) move_median() {
 	}
 }
 
-func (self *Median_t[T]) begin() (begin int) {
-	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
-		begin += self.limit
-	}
-	return
-}
-
-func (self *Median_t[T]) Value(ts time.Time) (median T, avg T, size int) {
-	if size = self.Evict(ts); size > 0 {
-		avg = self.avg / T(size)
-	}
-	median = self.median.Value.Data
-	return
-}
-
 func (self *Median_t[T]) Evict(ts time.Time) int {
 	begin := self.begin()
 	for self.cx.Size() > 0 {
@@ -155,6 +140,21 @@ func (self *Median_t[T]) Evict(ts time.Time) int {
 		}
 	}
 	return 0
+}
+
+func (self *Median_t[T]) begin() (begin int) {
+	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
+		begin += self.limit
+	}
+	return
+}
+
+func (self *Median_t[T]) Value(ts time.Time) (median T, avg T, size int) {
+	if size = self.Evict(ts); size > 0 {
+		avg = self.avg / T(size)
+	}
+	median = self.median.Value.Data
+	return
 }
 
 func (self *Median_t[T]) remove(it *cache.Value_t[int, MedianMapped_t[T]]) {
