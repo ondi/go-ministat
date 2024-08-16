@@ -1,5 +1,11 @@
 //
-// for Page_t only
+// sum(rate(http_page_request{app="$app_name"}[1m])) by(page)
+// sum(http_page_pending{app="$app_name"}) by (page)
+// max(http_page_latency{app="$app_name",type="avg"}) by (page)
+// max(http_page_latency{app="$app_name",type="med"}) by (page)
+// avg(http_page_latency_size{app="$app_name",type="med"}) by (page)
+// sum(rate(http_page_processed{app="$app_name"})[1m]) by (page,status)
+// sum(rate(http_page_error{app="$app_name"}[1m])) by (page,error)
 //
 
 package ministat
