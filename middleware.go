@@ -18,10 +18,16 @@ type Page_t struct {
 	Entry string // shard
 }
 
+type Duration_t struct {
+	Label    string
+	Duration time.Duration
+	Size     int
+}
+
 type Views[Key_t comparable] interface {
 	HitBegin(ctx context.Context, page Key_t) (err error)
-	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, size int, dur ...time.Duration) (err error)
-	HitReset(ctx context.Context, page Key_t, size int, dur ...time.Duration) (err error)
+	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, dur ...Duration_t) (err error)
+	HitReset(ctx context.Context, page Key_t, dur ...Duration_t) (err error)
 }
 
 type PageName_t[Key_t comparable] func(*http.Request) Key_t
@@ -126,7 +132,10 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		}
 		return false
 	})
-	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, size, median, avg)
+	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors,
+		Duration_t{Label: "med", Duration: median, Size: size},
+		Duration_t{Label: "avg", Duration: avg, Size: size},
+	)
 	if err != nil {
 		self.log(ctx, "MINISTAT: %v %q", err, name)
 	}
