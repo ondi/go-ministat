@@ -81,14 +81,16 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (median time.Duration, max time.Duration, avg time.Duration, size int) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (out [3]Duration_t) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
 	diff := end.Sub(begin)
-	median, max, avg, size = counter.median.Add(end, diff)
-	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average, counter.hit_end_size = median, max, avg, size
+	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average, counter.hit_end_size = counter.median.Add(end, diff)
+	out[0].Duration, out[1].Duration, out[2].Duration = counter.hit_end_median, counter.hit_end_max, counter.hit_end_average
+	out[0].Label, out[1].Label, out[1].Label = "med", "max", "avg"
+	out[0].Size, out[1].Size, out[1].Size = counter.hit_end_size, counter.hit_end_size, counter.hit_end_size
 	self.mx.Unlock()
 	return
 }
