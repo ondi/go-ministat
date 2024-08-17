@@ -19,6 +19,7 @@ type Counter_t struct {
 	hit_end_median  time.Duration
 	hit_end_max     time.Duration
 	hit_end_average time.Duration
+	hit_end_size    int
 	sampling        int64
 	hits            int64
 	pending         int64
@@ -27,18 +28,13 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Hits          int64
-	Pending       int64
-	Processed     int64
-	Errors        int64
-	HitBeginTs    time.Time
-	HitEndMedian  time.Duration
-	HitEndMax     time.Duration
-	HitEndAverage time.Duration
-	Median        time.Duration
-	Max           time.Duration
-	Average       time.Duration
-	Size          int
+	Hits       int64
+	Pending    int64
+	Processed  int64
+	Errors     int64
+	HitBeginTs time.Time
+	End        [3]Duration_t
+	Dur        [3]Duration_t
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -92,7 +88,7 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.
 	counter.processed += processed
 	diff := end.Sub(begin)
 	median, max, avg, size = counter.median.Add(end, diff)
-	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average = median, max, avg
+	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average, counter.hit_end_size = median, max, avg, size
 	self.mx.Unlock()
 	return
 }
@@ -150,9 +146,11 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.HitEndMedian = in.hit_end_median
-	out.HitEndMax = in.hit_end_max
-	out.HitEndAverage = in.hit_end_average
-	out.Median, out.Max, out.Average, out.Size = in.median.Value(ts)
+	out.End[0].Duration, out.End[1].Duration, out.End[2].Duration = in.hit_end_median, in.hit_end_max, in.hit_end_average
+	out.End[0].Label, out.End[1].Label, out.End[1].Label = "med", "max", "avg"
+	out.End[0].Size, out.End[1].Size, out.End[1].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
+	out.Dur[0].Duration, out.Dur[1].Duration, out.Dur[2].Duration, out.Dur[0].Size = in.median.Value(ts)
+	out.Dur[0].Label, out.Dur[1].Label, out.Dur[1].Label = "med", "max", "avg"
+	out.Dur[1].Size, out.Dur[2].Size = out.Dur[0].Size, out.Dur[0].Size
 	return
 }
