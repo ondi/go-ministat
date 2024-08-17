@@ -33,8 +33,8 @@ type Result_t struct {
 	Processed  int64
 	Errors     int64
 	HitBeginTs time.Time
-	End        [3]Duration_t
-	Dur        [3]Duration_t
+	Last       [3]Duration_t
+	Current    [3]Duration_t
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -146,11 +146,11 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.End[0].Duration, out.End[1].Duration, out.End[2].Duration = in.hit_end_median, in.hit_end_max, in.hit_end_average
-	out.End[0].Label, out.End[1].Label, out.End[1].Label = "med", "max", "avg"
-	out.End[0].Size, out.End[1].Size, out.End[1].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
-	out.Dur[0].Duration, out.Dur[1].Duration, out.Dur[2].Duration, out.Dur[0].Size = in.median.Value(ts)
-	out.Dur[0].Label, out.Dur[1].Label, out.Dur[1].Label = "med", "max", "avg"
-	out.Dur[1].Size, out.Dur[2].Size = out.Dur[0].Size, out.Dur[0].Size
+	out.Last[0].Duration, out.Last[1].Duration, out.Last[2].Duration = in.hit_end_median, in.hit_end_max, in.hit_end_average
+	out.Last[0].Label, out.Last[1].Label, out.Last[1].Label = "med", "max", "avg"
+	out.Last[0].Size, out.Last[1].Size, out.Last[1].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
+	out.Current[0].Duration, out.Current[1].Duration, out.Current[2].Duration, out.Current[0].Size = in.median.Value(ts)
+	out.Current[0].Label, out.Current[1].Label, out.Current[1].Label = "med", "max", "avg"
+	out.Current[1].Size, out.Current[2].Size = out.Current[0].Size, out.Current[0].Size
 	return
 }
