@@ -17,6 +17,7 @@ type Counter_t struct {
 	// average         *Average_t[time.Duration]
 	hit_begin_ts    time.Time
 	hit_end_median  time.Duration
+	hit_end_max     time.Duration
 	hit_end_average time.Duration
 	sampling        int64
 	hits            int64
@@ -32,10 +33,12 @@ type Result_t struct {
 	Errors        int64
 	HitBeginTs    time.Time
 	HitEndMedian  time.Duration
+	HitEndMax     time.Duration
 	HitEndAverage time.Duration
 	Median        time.Duration
+	Max           time.Duration
 	Average       time.Duration
-	MedianSize    int
+	Size          int
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -82,15 +85,14 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (median time.Duration, avg time.Duration, size int) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.Time, end time.Time, processed int64, errors int64) (median time.Duration, max time.Duration, avg time.Duration, size int) {
 	self.mx.Lock()
 	counter.pending--
 	counter.errors += errors
 	counter.processed += processed
 	diff := end.Sub(begin)
-	median, avg, size = counter.median.Add(end, diff)
-	counter.hit_end_median = median
-	counter.hit_end_average = avg
+	median, max, avg, size = counter.median.Add(end, diff)
+	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average = median, max, avg
 	self.mx.Unlock()
 	return
 }
@@ -149,7 +151,8 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
 	out.HitEndMedian = in.hit_end_median
+	out.HitEndMax = in.hit_end_max
 	out.HitEndAverage = in.hit_end_average
-	out.Median, out.Average, out.MedianSize = in.median.Value(ts)
+	out.Median, out.Max, out.Average, out.Size = in.median.Value(ts)
 	return
 }

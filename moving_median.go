@@ -25,7 +25,7 @@ type MedianMapped_t[T Number] struct {
 type Median_t[T Number] struct {
 	cx     *cache.Cache_t[int, MedianMapped_t[T]]
 	median *cache.Value_t[int, MedianMapped_t[T]]
-	avg    T
+	sum    T
 	ttl    time.Duration
 	seq    int
 	limit  int
@@ -44,9 +44,10 @@ func NewMedian[T Number](limit int, ttl time.Duration) (self *Median_t[T]) {
 	return
 }
 
-func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, int) {
+// median, max, avg, size
+func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, T, int) {
 	self.Evict(ts)
-	self.avg += data
+	self.sum += data
 	self.seq++
 	if self.seq >= self.limit {
 		self.seq = 0
@@ -89,7 +90,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, int) {
 				self.right--
 			}
 		}
-		self.avg -= it.Value.Data
+		self.sum -= it.Value.Data
 		it.Value.Ts = ts
 		it.Value.Data = data
 	}
@@ -113,7 +114,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, int) {
 		cache.SetNext(it, at)
 	}
 	self.move_median()
-	return self.median.Value.Data, self.avg / T(self.cx.Size()), self.cx.Size()
+	return self.median.Value.Data, self.cx.Back().Value.Data, self.sum / T(self.cx.Size()), self.cx.Size()
 }
 
 func (self *Median_t[T]) move_median() {
@@ -135,7 +136,7 @@ func (self *Median_t[T]) Evict(ts time.Time) int {
 		if ts.Sub(it.Value.Ts) < self.ttl {
 			return self.cx.Size()
 		}
-		self.avg -= it.Value.Data
+		self.sum -= it.Value.Data
 		self.remove(it)
 		begin++
 		if begin >= self.limit {
@@ -152,11 +153,12 @@ func (self *Median_t[T]) begin() (begin int) {
 	return
 }
 
-func (self *Median_t[T]) Value(ts time.Time) (median T, avg T, size int) {
+func (self *Median_t[T]) Value(ts time.Time) (median T, max T, avg T, size int) {
 	if size = self.Evict(ts); size > 0 {
-		avg = self.avg / T(size)
+		avg = self.sum / T(size)
 	}
 	median = self.median.Value.Data
+	max = self.cx.Back().Value.Data
 	return
 }
 
