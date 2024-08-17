@@ -89,8 +89,8 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.
 	diff := end.Sub(begin)
 	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average, counter.hit_end_size = counter.median.Add(end, diff)
 	out[0].Duration, out[1].Duration, out[2].Duration = counter.hit_end_median, counter.hit_end_max, counter.hit_end_average
-	out[0].Label, out[1].Label, out[1].Label = "med", "max", "avg"
-	out[0].Size, out[1].Size, out[1].Size = counter.hit_end_size, counter.hit_end_size, counter.hit_end_size
+	out[0].Label, out[1].Label, out[2].Label = "med", "max", "avg"
+	out[0].Size, out[1].Size, out[2].Size = counter.hit_end_size, counter.hit_end_size, counter.hit_end_size
 	self.mx.Unlock()
 	return
 }
@@ -149,10 +149,10 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
 	out.Last[0].Duration, out.Last[1].Duration, out.Last[2].Duration = in.hit_end_median, in.hit_end_max, in.hit_end_average
-	out.Last[0].Label, out.Last[1].Label, out.Last[1].Label = "med", "max", "avg"
-	out.Last[0].Size, out.Last[1].Size, out.Last[1].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
+	out.Last[0].Label, out.Last[1].Label, out.Last[2].Label = "med", "max", "avg"
+	out.Last[0].Size, out.Last[1].Size, out.Last[2].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
 	out.Current[0].Duration, out.Current[1].Duration, out.Current[2].Duration, out.Current[0].Size = in.median.Value(ts)
-	out.Current[0].Label, out.Current[1].Label, out.Current[1].Label = "med", "max", "avg"
+	out.Current[0].Label, out.Current[1].Label, out.Current[2].Label = "med", "max", "avg"
 	out.Current[1].Size, out.Current[2].Size = out.Current[0].Size, out.Current[0].Size
 	return
 }
