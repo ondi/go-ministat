@@ -64,18 +64,18 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 
 type ResponseLogger_t struct {
 	next       http.Handler
-	log        WriteLog_t
-	log_msg    LogCtxGet_t
+	log_write  LogWrite_t
+	log_read   LogRead_t
 	req_limit  int
 	resp_limit int
 	exclude    *tst.Tree3_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log WriteLog_t, log_msg LogCtxGet_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log_write LogWrite_t, log_read LogRead_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:       next,
-		log:        log,
-		log_msg:    log_msg,
+		log_write:  log_write,
+		log_read:   log_read,
 		req_limit:  req_limit,
 		resp_limit: resp_limit,
 		exclude:    tst.NewTree3[int](),
@@ -93,12 +93,12 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	r.Body = &reader
 	_, ok := self.exclude.Search(r.URL.Path)
 	if !ok {
-		self.log(r.Context(), "REQUEST: %s", r.URL.String())
+		self.log_write(r.Context(), "REQUEST: %s", r.URL.String())
 	}
 	self.next.ServeHTTP(&writer, r)
 	if !ok {
 		var errors string
-		self.log_msg(r.Context(), func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
+		self.log_read(r.Context(), func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 			if level_id < 3 {
 				return true
 			}
@@ -109,7 +109,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			}
 			return false
 		})
-		self.log(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
+		self.log_write(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
 			r.URL.String(), writer.status_code, writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}
 }
