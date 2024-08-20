@@ -6,10 +6,12 @@ package ministat
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Key_t for storage
@@ -125,15 +127,23 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		if level_id < 3 {
 			return true
 		}
-		if ix := strings.Index(format, " "); ix > -1 {
-			errors = format[:ix]
-		} else {
-			errors = format
-		}
+		errors = FirstWords(fmt.Sprintf(format, args...), 3)
 		return false
 	})
 	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, dur[:]...)
 	if err != nil {
 		self.log_write(ctx, "MINISTAT: %v %q", err, name)
 	}
+}
+
+func FirstWords(in string, count int) string {
+	for i, v := range in {
+		if unicode.IsSpace(v) {
+			count--
+			if count <= 0 {
+				return in[0:i]
+			}
+		}
+	}
+	return in
 }
