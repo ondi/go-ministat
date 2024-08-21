@@ -47,21 +47,21 @@ func NewMedian[T Number](limit int, ttl time.Duration) (self *Median_t[T]) {
 // median, max, avg, size
 func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, T, int) {
 	self.Evict(ts)
-	self.sum += data
-	self.seq++
-	if self.seq >= self.limit {
-		self.seq = 0
-	}
 	it, inserted := self.cx.CreateBack(
 		self.seq,
 		func(p *MedianMapped_t[T]) {
-			p.Ts = ts
+			p.Ts = ts.Add(self.ttl)
 			p.Data = data
 		},
 		func(p *MedianMapped_t[T]) {
 			// do not overwrite value here it.Value.Data used below
 		},
 	)
+	self.sum += data
+	self.seq++
+	if self.seq >= self.limit {
+		self.seq = 0
+	}
 	if inserted {
 		if self.cx.Size() == 1 {
 			self.median = it
@@ -91,7 +91,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, T, int) {
 			}
 		}
 		self.sum -= it.Value.Data
-		it.Value.Ts = ts
+		it.Value.Ts = ts.Add(self.ttl)
 		it.Value.Data = data
 	}
 	// insert value into sorted list
@@ -133,7 +133,7 @@ func (self *Median_t[T]) Evict(ts time.Time) int {
 	begin := self.begin()
 	for self.cx.Size() > 0 {
 		it, _ := self.cx.Find(begin)
-		if ts.Sub(it.Value.Ts) < self.ttl {
+		if ts.Before(it.Value.Ts) {
 			return self.cx.Size()
 		}
 		self.sum -= it.Value.Data
@@ -147,7 +147,7 @@ func (self *Median_t[T]) Evict(ts time.Time) int {
 }
 
 func (self *Median_t[T]) begin() (begin int) {
-	if begin = self.seq - self.cx.Size() + 1; begin < 0 {
+	if begin = self.seq - self.cx.Size(); begin < 0 {
 		begin += self.limit
 	}
 	return

@@ -229,7 +229,7 @@ func Test_median60(t *testing.T) {
 	}
 
 	m.range_test(ts, func(key int, value MedianMapped_t[int]) bool {
-		t.Logf("RANGE: %02d %v", key, value.Data)
+		t.Logf("RANGE: %02d %v %v", key, value.Data, value.Ts.Sub(ts))
 		return true
 	})
 }
