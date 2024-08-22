@@ -21,15 +21,15 @@ type Average_t[T Number] struct {
 	truncate    time.Duration
 	total_sum   T
 	total_count T
-	limit       int
+	buckets     int
 }
 
-func NewAverage[T Number](limit int, ttl time.Duration) (self *Average_t[T]) {
+func NewAverage[T Number](buckets int, ttl time.Duration) (self *Average_t[T]) {
 	self = &Average_t[T]{
 		cx:       cache.New[time.Time, AverageMapped_t[T]](),
 		ttl:      ttl,
-		truncate: ttl / time.Duration(limit),
-		limit:    limit,
+		truncate: ttl / time.Duration(buckets),
+		buckets:  buckets,
 	}
 	return
 }
@@ -37,7 +37,7 @@ func NewAverage[T Number](limit int, ttl time.Duration) (self *Average_t[T]) {
 func (self *Average_t[T]) Add(ts time.Time, data T) (T, int) {
 	self.Evict(ts)
 	self.cx.CreateBack(
-		ts.Truncate(self.truncate),
+		ts.Add(self.ttl).Truncate(self.truncate),
 		func(p *AverageMapped_t[T]) {
 			p.Data += data
 			p.Count++
@@ -54,8 +54,8 @@ func (self *Average_t[T]) Add(ts time.Time, data T) (T, int) {
 
 func (self *Average_t[T]) Evict(ts time.Time) int {
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
-		if self.cx.Size() <= self.limit && ts.Sub(it.Key) < self.ttl {
-			return int(self.total_count)
+		if self.cx.Size() <= self.buckets && ts.Before(it.Key) {
+			return self.cx.Size()
 		}
 		self.total_sum -= it.Value.Data
 		self.total_count -= it.Value.Count
@@ -65,7 +65,8 @@ func (self *Average_t[T]) Evict(ts time.Time) int {
 }
 
 func (self *Average_t[T]) Value(ts time.Time) (value T, count int) {
-	if count = self.Evict(ts); count > 0 {
+	self.Evict(ts)
+	if count = int(self.total_count); count > 0 {
 		value = self.total_sum / self.total_count
 	}
 	return

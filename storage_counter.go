@@ -13,13 +13,14 @@ import (
 )
 
 type Counter_t struct {
-	median *Median_t[time.Duration]
-	// average         *Average_t[time.Duration]
+	median          *Median_t[time.Duration]
+	average         *Average_t[time.Duration] // RPS
 	hit_begin_ts    time.Time
 	hit_end_median  time.Duration
 	hit_end_max     time.Duration
 	hit_end_average time.Duration
 	hit_end_size    int
+	rps             int
 	sampling        int64
 	hits            int64
 	pending         int64
@@ -33,8 +34,8 @@ type Result_t struct {
 	Processed  int64
 	Errors     int64
 	HitBeginTs time.Time
-	Last       [3]Duration_t
-	Current    [3]Duration_t
+	Last       [4]Duration_t
+	Current    [4]Duration_t
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -63,20 +64,25 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 	return
 }
 
-func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64) {
+func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, dur [1]Duration_t) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
-				median: NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				// average: NewAverage[time.Duration](self.median_limit, self.median_ttl),
+				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				average: NewAverage[time.Duration](32, 1*time.Second),
 			}
 		},
 	)
 	counter.hits++
 	counter.pending++
-	counter.hit_begin_ts, sampling, pending = begin, counter.sampling, counter.pending
+	_, counter.rps = counter.average.Add(begin, 0)
+	counter.hit_begin_ts = begin
+	sampling = counter.sampling
+	pending = counter.pending
+	dur[0].Label = "rps"
+	dur[0].Size = counter.rps
 	self.mx.Unlock()
 	return
 }
@@ -88,9 +94,15 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.
 	counter.processed += processed
 	diff := end.Sub(begin)
 	counter.hit_end_median, counter.hit_end_max, counter.hit_end_average, counter.hit_end_size = counter.median.Add(end, diff)
-	out[0].Duration, out[1].Duration, out[2].Duration = counter.hit_end_median, counter.hit_end_max, counter.hit_end_average
-	out[0].Label, out[1].Label, out[2].Label = "med", "max", "avg"
-	out[0].Size, out[1].Size, out[2].Size = counter.hit_end_size, counter.hit_end_size, counter.hit_end_size
+	out[0].Label = "med"
+	out[1].Label = "max"
+	out[2].Label = "avg"
+	out[0].Duration = counter.hit_end_median
+	out[1].Duration = counter.hit_end_max
+	out[2].Duration = counter.hit_end_average
+	out[0].Size = counter.hit_end_size
+	out[1].Size = counter.hit_end_size
+	out[2].Size = counter.hit_end_size
 	self.mx.Unlock()
 	return
 }
@@ -148,11 +160,25 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.Last[0].Duration, out.Last[1].Duration, out.Last[2].Duration = in.hit_end_median, in.hit_end_max, in.hit_end_average
-	out.Last[0].Label, out.Last[1].Label, out.Last[2].Label = "med", "max", "avg"
-	out.Last[0].Size, out.Last[1].Size, out.Last[2].Size = in.hit_end_size, in.hit_end_size, in.hit_end_size
+	out.Last[0].Label = "med"
+	out.Last[1].Label = "max"
+	out.Last[2].Label = "avg"
+	out.Last[3].Label = "rps"
+	out.Last[0].Duration = in.hit_end_median
+	out.Last[1].Duration = in.hit_end_max
+	out.Last[2].Duration = in.hit_end_average
+	out.Last[3].Duration = 0
+	out.Last[0].Size = in.hit_end_size
+	out.Last[1].Size = in.hit_end_size
+	out.Last[2].Size = in.hit_end_size
+	out.Last[3].Size = in.rps
+	out.Current[0].Label = "med"
+	out.Current[1].Label = "max"
+	out.Current[2].Label = "avg"
+	out.Current[3].Label = "rps"
 	out.Current[0].Duration, out.Current[1].Duration, out.Current[2].Duration, out.Current[0].Size = in.median.Value(ts)
-	out.Current[0].Label, out.Current[1].Label, out.Current[2].Label = "med", "max", "avg"
-	out.Current[1].Size, out.Current[2].Size = out.Current[0].Size, out.Current[0].Size
+	out.Current[1].Size = out.Current[0].Size
+	out.Current[2].Size = out.Current[0].Size
+	_, out.Current[3].Size = in.average.Value(ts)
 	return
 }

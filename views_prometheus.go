@@ -57,7 +57,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	return self, err
 }
 
-func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t) (err error) {
+func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t, dur ...Duration_t) (err error) {
 	_request, err := self.Request.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry})
 	if err != nil {
 		return
@@ -66,6 +66,21 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t) (err error)
 	if err != nil {
 		return
 	}
+
+	var _latency, _latency_size prometheus.Gauge
+	for _, v := range dur {
+		_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
+		if err != nil {
+			return
+		}
+		_latency_size, err = self.LatencySize.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
+		if err != nil {
+			return
+		}
+		_latency.Set(float64(v.Duration))
+		_latency_size.Set(float64(v.Size))
+	}
+
 	_request.Add(1)
 	_pending.Add(1)
 	return

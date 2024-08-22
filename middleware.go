@@ -27,7 +27,7 @@ type Duration_t struct {
 }
 
 type Views[Key_t comparable] interface {
-	HitBegin(ctx context.Context, page Key_t) (err error)
+	HitBegin(ctx context.Context, page Key_t, dur ...Duration_t) (err error)
 	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, dur ...Duration_t) (err error)
 	HitReset(ctx context.Context, page Key_t, dur ...Duration_t) (err error)
 }
@@ -107,7 +107,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, sampling, pending := self.storage.HitBegin(page, ts)
+	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
 	err := self.views.HitBegin(r.Context(), page)
 	if err != nil {
