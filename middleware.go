@@ -107,9 +107,9 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
+	counter, sampling, pending, dur := self.storage.HitBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
-	err := self.views.HitBegin(r.Context(), page)
+	err := self.views.HitBegin(r.Context(), page, dur[:]...)
 	if err != nil {
 		self.log_write(r.Context(), "MINISTAT: %v %q", err, page)
 	}
