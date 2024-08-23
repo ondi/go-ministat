@@ -20,7 +20,7 @@ import (
 type Prometheus_t struct {
 	Request     *prometheus.CounterVec
 	Pending     *prometheus.GaugeVec
-	Load        *prometheus.GaugeVec
+	Gauge       *prometheus.GaugeVec
 	Processed   *prometheus.CounterVec
 	Error       *prometheus.CounterVec
 	Latency     *prometheus.GaugeVec // label with type: avg, med, etc
@@ -33,7 +33,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	self := &Prometheus_t{
 		Request:     prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "request"}, []string{"page", "entry"}),
 		Pending:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "pending"}, []string{"page", "entry"}),
-		Load:        prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "load"}, []string{"type", "page", "entry"}),
+		Gauge:       prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "gauge"}, []string{"type", "page", "entry"}),
 		Processed:   prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "processed"}, []string{"page", "entry", "status"}),
 		Error:       prometheus.NewCounterVec(prometheus.CounterOpts{Name: prefix + "error"}, []string{"page", "entry", "error"}),
 		Latency:     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "latency"}, []string{"type", "page", "entry"}),
@@ -43,6 +43,9 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 		return
 	}
 	if err = prometheus.Register(self.Pending); err != nil {
+		return
+	}
+	if err = prometheus.Register(self.Gauge); err != nil {
 		return
 	}
 	if err = prometheus.Register(self.Processed); err != nil {
@@ -70,13 +73,13 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t, g []Gauge_t
 		return
 	}
 
-	var _load prometheus.Gauge
+	var _gauge prometheus.Gauge
 	for _, v := range g {
-		_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
+		_gauge, err = self.Gauge.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
 		if err != nil {
 			return
 		}
-		_load.Set(float64(v.Value))
+		_gauge.Set(float64(v.Value))
 	}
 
 	_request.Add(1)
@@ -121,13 +124,13 @@ func (self *Prometheus_t) HitEnd(ctx context.Context, page Page_t, processed int
 }
 
 func (self *Prometheus_t) HitReset(ctx context.Context, page Page_t, g []Gauge_t, d []Duration_t) (err error) {
-	var _load prometheus.Gauge
+	var _gauge prometheus.Gauge
 	for _, v := range g {
-		_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
+		_gauge, err = self.Gauge.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
 		if err != nil {
 			return
 		}
-		_load.Set(float64(v.Value))
+		_gauge.Set(float64(v.Value))
 	}
 	var _latency, _latency_size prometheus.Gauge
 	for _, v := range d {
