@@ -29,13 +29,15 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Hits       int64
-	Pending    int64
-	Processed  int64
-	Errors     int64
-	HitBeginTs time.Time
-	Last       [4]Duration_t
-	Current    [4]Duration_t
+	Hits            int64
+	Pending         int64
+	Processed       int64
+	Errors          int64
+	HitBeginTs      time.Time
+	DurationLast    [3]Duration_t
+	DurationCurrent [3]Duration_t
+	GaugeLast       [1]Gauge_t
+	GaugeCurrent    [1]Gauge_t
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -64,14 +66,14 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 	return
 }
 
-func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, dur [1]Duration_t) {
+func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, g [1]Gauge_t) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
 				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				average: NewAverage[time.Duration](32, 1*time.Second),
+				average: NewAverage[time.Duration](64, 1*time.Second),
 			}
 		},
 	)
@@ -81,8 +83,8 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	counter.hit_begin_ts = begin
 	sampling = counter.sampling
 	pending = counter.pending
-	dur[0].Label = "rps"
-	dur[0].Size = counter.rps
+	g[0].Label = "rps"
+	g[0].Value = counter.rps
 	self.mx.Unlock()
 	return
 }
@@ -97,9 +99,9 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, name Key_t, begin time.
 	out[0].Label = "med"
 	out[1].Label = "max"
 	out[2].Label = "avg"
-	out[0].Duration = counter.hit_end_median
-	out[1].Duration = counter.hit_end_max
-	out[2].Duration = counter.hit_end_average
+	out[0].Value = counter.hit_end_median
+	out[1].Value = counter.hit_end_max
+	out[2].Value = counter.hit_end_average
 	out[0].Size = counter.hit_end_size
 	out[1].Size = counter.hit_end_size
 	out[2].Size = counter.hit_end_size
@@ -160,25 +162,28 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.Processed = in.processed
 	out.Errors = in.errors
 	out.HitBeginTs = in.hit_begin_ts
-	out.Last[0].Label = "med"
-	out.Last[1].Label = "max"
-	out.Last[2].Label = "avg"
-	out.Last[3].Label = "rps"
-	out.Last[0].Duration = in.hit_end_median
-	out.Last[1].Duration = in.hit_end_max
-	out.Last[2].Duration = in.hit_end_average
-	out.Last[3].Duration = 0
-	out.Last[0].Size = in.hit_end_size
-	out.Last[1].Size = in.hit_end_size
-	out.Last[2].Size = in.hit_end_size
-	out.Last[3].Size = in.rps
-	out.Current[0].Label = "med"
-	out.Current[1].Label = "max"
-	out.Current[2].Label = "avg"
-	out.Current[3].Label = "rps"
-	out.Current[0].Duration, out.Current[1].Duration, out.Current[2].Duration, out.Current[0].Size = in.median.Value(ts)
-	out.Current[1].Size = out.Current[0].Size
-	out.Current[2].Size = out.Current[0].Size
-	_, out.Current[3].Size = in.average.Value(ts)
+
+	out.DurationLast[0].Label = "med"
+	out.DurationLast[1].Label = "max"
+	out.DurationLast[2].Label = "avg"
+	out.DurationLast[0].Value = in.hit_end_median
+	out.DurationLast[1].Value = in.hit_end_max
+	out.DurationLast[2].Value = in.hit_end_average
+	out.DurationLast[0].Size = in.hit_end_size
+	out.DurationLast[1].Size = in.hit_end_size
+	out.DurationLast[2].Size = in.hit_end_size
+
+	out.GaugeLast[0].Label = "rps"
+	out.GaugeLast[0].Value = in.rps
+
+	out.DurationCurrent[0].Label = "med"
+	out.DurationCurrent[1].Label = "max"
+	out.DurationCurrent[2].Label = "avg"
+	out.DurationCurrent[0].Value, out.DurationCurrent[1].Value, out.DurationCurrent[2].Value, out.DurationCurrent[0].Size = in.median.Value(ts)
+	out.DurationCurrent[1].Size = out.DurationCurrent[0].Size
+	out.DurationCurrent[2].Size = out.DurationCurrent[0].Size
+
+	out.GaugeCurrent[0].Label = "rps"
+	_, out.GaugeCurrent[0].Value = in.average.Value(ts)
 	return
 }
