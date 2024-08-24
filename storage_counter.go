@@ -29,10 +29,6 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	Hits            int64
-	Pending         int64
-	Processed       int64
-	Errors          int64
 	HitBeginTs      time.Time
 	GaugeLast       [6]Gauge_t
 	GaugeCurrent    [2]Gauge_t
