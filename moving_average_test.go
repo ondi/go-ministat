@@ -14,7 +14,7 @@ import (
 func Test_average10(t *testing.T) {
 	ts := time.Now()
 	var res int
-	var size int
+	var size int64
 	m := NewAverage[int](100, 1000*time.Millisecond)
 	for i := 0; i < 1000; i++ {
 		ts = ts.Add(100 * time.Millisecond)

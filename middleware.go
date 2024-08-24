@@ -23,18 +23,17 @@ type Page_t struct {
 type Duration_t struct {
 	Label string
 	Value time.Duration
-	Size  int
 }
 
 type Gauge_t struct {
 	Label string
-	Value int
+	Value int64
 }
 
 type Views[Key_t comparable] interface {
 	HitBegin(ctx context.Context, page Key_t, g []Gauge_t) (err error)
-	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, d []Duration_t) (err error)
-	HitReset(ctx context.Context, page Key_t, g []Gauge_t, d []Duration_t) (err error)
+	HitEnd(ctx context.Context, page Key_t, processed int64, status string, errors string, g []Gauge_t, d []Duration_t) (err error)
+	HitRefresh(ctx context.Context, page Key_t, g []Gauge_t, d []Duration_t) (err error)
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
@@ -112,13 +111,13 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	ts := time.Now()
 	page := self.page_name(r)
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
-	counter, sampling, pending, g := self.storage.HitBegin(page, ts)
+	counter, sampling, g := self.storage.HitBegin(page, ts)
 	defer self.serve_done(r.Context(), counter, page, ts, &writer)
 	err := self.views.HitBegin(r.Context(), page, g[:])
 	if err != nil {
 		self.log_write(r.Context(), "MINISTAT: %v %q", err, page)
 	}
-	if sampling > 0 && pending <= self.pending_limit {
+	if sampling > 0 && g[0].Value <= self.pending_limit {
 		self.next_passed.ServeHTTP(&writer, r)
 	} else {
 		self.next_failed.ServeHTTP(&writer, r)
@@ -126,7 +125,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 }
 
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
-	d := self.storage.HitEnd(counter, name, start, time.Now(), 1, CountErrors(writer.status_code))
+	g, d := self.storage.HitEnd(counter, start, time.Now(), 1, CountErrors(writer.status_code))
 	var errors string
 	self.log_read(ctx, func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 		if level_id < 3 {
@@ -135,7 +134,7 @@ func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counte
 		errors = FirstWords(fmt.Sprintf(format, args...), 3)
 		return false
 	})
-	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, d[:])
+	err := self.views.HitEnd(ctx, name, 1, strconv.FormatInt(int64(writer.status_code), 10), errors, g[:], d[:])
 	if err != nil {
 		self.log_write(ctx, "MINISTAT: %v %q", err, name)
 	}
