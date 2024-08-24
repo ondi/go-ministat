@@ -19,7 +19,7 @@ import (
 )
 
 type Prometheus_t struct {
-	Load      *prometheus.GaugeVec // pending, hits, rps, size
+	Load      *prometheus.GaugeVec // pending, hits, rps, latency size
 	Latency   *prometheus.GaugeVec // med, max, avg
 	Processed *prometheus.CounterVec
 	Error     *prometheus.CounterVec
@@ -62,7 +62,7 @@ func (self *Prometheus_t) HitBegin(ctx context.Context, page Page_t, g []Gauge_t
 }
 
 func (self *Prometheus_t) HitEnd(ctx context.Context, page Page_t, processed int64, status string, errors string, g []Gauge_t, d []Duration_t) (err error) {
-	if err = self.HitRefresh(ctx, page, g, d); err != nil {
+	if err = self.HitCurrent(ctx, page, g, d); err != nil {
 		return
 	}
 
@@ -82,7 +82,7 @@ func (self *Prometheus_t) HitEnd(ctx context.Context, page Page_t, processed int
 	return
 }
 
-func (self *Prometheus_t) HitRefresh(ctx context.Context, page Page_t, g []Gauge_t, d []Duration_t) (err error) {
+func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge_t, d []Duration_t) (err error) {
 	var _load, _latency prometheus.Gauge
 	for _, v := range g {
 		_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Label, "page": page.Name, "entry": page.Entry})
