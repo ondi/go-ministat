@@ -1,7 +1,7 @@
 //
 // sum(rate(http_page_load{app="$app_name",type="hits"}[1m])) by(page)
-// sum(http_page_load{app="$app_name",type="pending"}) by (page)
 // sum(http_page_load{app="$app_name",type="rps"}) by (page)
+// sum(http_page_load{app="$app_name",type="pending"}) by (page)
 // sum(http_page_load{app="$app_name",type="size"}) by (page)
 // max(http_page_latency{app="$app_name",type="max"}) by (page)
 // max(http_page_latency{app="$app_name",type="avg"}) by (page)

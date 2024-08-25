@@ -169,8 +169,8 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.DurationCurrent[2].Label = "avg"
 	out.DurationCurrent[0].Value, out.DurationCurrent[1].Value, out.DurationCurrent[2].Value, size = in.median.Value(ts)
 
-	out.GaugeCurrent[0] = Gauge_t{Label: "size", Value: int64(size)}
-	out.GaugeCurrent[1].Label = "rps"
-	_, out.GaugeCurrent[1].Value = in.average.Value(ts)
+	out.GaugeCurrent[0].Label = "rps"
+	_, out.GaugeCurrent[0].Value = in.average.Value(ts)
+	out.GaugeCurrent[1] = Gauge_t{Label: "size", Value: int64(size)}
 	return
 }
