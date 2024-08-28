@@ -142,6 +142,16 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	out.HitBeginTs = in.hit_begin_ts
 
+	out.GaugeLast = append(out.GaugeLast,
+		Gauge_t{Type: "rps", Value: in.rps},
+		Gauge_t{Type: "hits", Value: in.hits},
+		Gauge_t{Type: "pending", Value: in.pending},
+		Gauge_t{Type: "med", Value: in.hit_end_med.Nanoseconds()},
+		Gauge_t{Type: "max", Value: in.hit_end_max.Nanoseconds()},
+		Gauge_t{Type: "avg", Value: in.hit_end_avg.Nanoseconds()},
+		Gauge_t{Type: "size", Value: int64(in.hit_end_size)},
+	)
+
 	_, rps := in.average.Value(ts)
 	med, avg, max, size := in.median.Value(ts)
 	out.GaugeCurrent = append(out.GaugeCurrent,
@@ -155,21 +165,12 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	)
 
 	for k, v := range in.processed {
+		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "processed", Status: k, Value: v})
 		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "processed", Status: k, Value: v})
 	}
-
 	for k, v := range in.errors {
+		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "errors", Status: k, Value: v})
 		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "errors", Status: k, Value: v})
 	}
-
-	out.GaugeLast = append(out.GaugeLast,
-		Gauge_t{Type: "rps", Value: in.rps},
-		Gauge_t{Type: "hits", Value: in.hits},
-		Gauge_t{Type: "pending", Value: in.pending},
-		Gauge_t{Type: "med", Value: in.hit_end_med.Nanoseconds()},
-		Gauge_t{Type: "max", Value: in.hit_end_max.Nanoseconds()},
-		Gauge_t{Type: "avg", Value: in.hit_end_avg.Nanoseconds()},
-		Gauge_t{Type: "size", Value: int64(in.hit_end_size)},
-	)
 	return
 }
