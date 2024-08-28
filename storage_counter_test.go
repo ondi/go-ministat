@@ -40,7 +40,7 @@ func Test_Get01(t *testing.T) {
 
 	ts := time.Now()
 	s.HitBegin("test1", ts)
-	res, ok := s.HitGet("test1", ts)
+	res, ok := s.HitGet(ts, "test1")
 	assert.Assert(t, ok, ok)
-	assert.Assert(t, res.GaugeLast[1].Value == 1, res.GaugeLast)
+	assert.Assert(t, res.GaugeLast[0].Value == 1, res.GaugeLast)
 }

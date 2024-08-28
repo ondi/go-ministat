@@ -15,25 +15,23 @@ import (
 type Counter_t struct {
 	median       *Median_t[time.Duration]
 	average      *Average_t[time.Duration] // RPS
+	processed    map[string]int64
+	errors       map[string]int64
 	hit_begin_ts time.Time
 	hit_end_med  time.Duration
 	hit_end_max  time.Duration
 	hit_end_avg  time.Duration
 	hit_end_size int
-	rps          int64
 	sampling     int64
+	rps          int64
 	hits         int64
 	pending      int64
-	processed    int64
-	errors       int64
 }
 
 type Result_t struct {
-	HitBeginTs      time.Time
-	GaugeLast       [6]Gauge_t
-	GaugeCurrent    [2]Gauge_t
-	DurationLast    [3]Duration_t
-	DurationCurrent [3]Duration_t
+	HitBeginTs   time.Time
+	GaugeCurrent []Gauge_t
+	GaugeLast    []Gauge_t
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -62,14 +60,16 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 	return
 }
 
-func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, g [3]Gauge_t) {
+func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, rps int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
-				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				average: NewAverage[time.Duration](64, 1*time.Second),
+				median:    NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				average:   NewAverage[time.Duration](64, 1*time.Second),
+				processed: map[string]int64{},
+				errors:    map[string]int64{},
 			}
 		},
 	)
@@ -78,46 +78,38 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	_, counter.rps = counter.average.Add(begin, 0)
 	counter.hit_begin_ts = begin
 	sampling = counter.sampling
-	g[0] = Gauge_t{Label: "pending", Value: counter.pending}
-	g[1] = Gauge_t{Label: "hits", Value: counter.hits}
-	g[2] = Gauge_t{Label: "rps", Value: counter.rps}
+	pending = counter.pending
+	rps = counter.rps
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed int64, errors int64) (g [4]Gauge_t, d [3]Duration_t) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed int64, status string, errors string) {
 	self.mx.Lock()
 	counter.pending--
-	counter.errors += errors
-	counter.processed += processed
+	counter.errors[errors] += processed
+	counter.processed[status] += processed
 	counter.hit_end_med, counter.hit_end_max, counter.hit_end_avg, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
-	d[0] = Duration_t{Label: "med", Value: counter.hit_end_med}
-	d[1] = Duration_t{Label: "max", Value: counter.hit_end_max}
-	d[2] = Duration_t{Label: "avg", Value: counter.hit_end_avg}
-	g[0] = Gauge_t{Label: "pending", Value: counter.pending}
-	g[1] = Gauge_t{Label: "errors", Value: counter.errors}
-	g[2] = Gauge_t{Label: "processed", Value: counter.processed}
-	g[3] = Gauge_t{Label: "size", Value: int64(counter.hit_end_size)}
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t[Key_t]) HitGet(name Key_t, ts time.Time) (out Result_t, ok bool) {
+func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok bool) {
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {
-		out = ToResult(res, ts)
+		out = to_result(res, ts)
 	}
 	self.mx.Unlock()
 	return
 }
 
-func (self *Storage_t[Key_t]) RangeSort(order cache.Less_t[Key_t, *Counter_t], ts time.Time, f func(name Key_t, res Result_t) bool) {
+func (self *Storage_t[Key_t]) RangeSort(ts time.Time, order cache.Less_t[Key_t, *Counter_t], f func(name Key_t, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.RangeSort(
 		order,
 		func(key Key_t, value *Counter_t) bool {
-			return f(key, ToResult(value, ts))
+			return f(key, to_result(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -127,7 +119,7 @@ func (self *Storage_t[Key_t]) Range(ts time.Time, f func(name Key_t, res Result_
 	self.mx.Lock()
 	self.pages.Range(
 		func(key Key_t, value *Counter_t) bool {
-			return f(key, ToResult(value, ts))
+			return f(key, to_result(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -141,36 +133,39 @@ func LessHits[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Va
 	return a.Value.hits < b.Value.hits
 }
 
-func LessProcessed[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
-	return a.Value.processed < b.Value.processed
-}
-
 func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.median.median.Value.Data < b.Value.median.median.Value.Data
 }
 
-func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
+func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	out.HitBeginTs = in.hit_begin_ts
 
-	out.GaugeLast[0] = Gauge_t{Label: "pending", Value: in.pending}
-	out.GaugeLast[1] = Gauge_t{Label: "hits", Value: in.hits}
-	out.GaugeLast[2] = Gauge_t{Label: "rps", Value: in.rps}
-	out.GaugeLast[3] = Gauge_t{Label: "errors", Value: in.errors}
-	out.GaugeLast[4] = Gauge_t{Label: "processed", Value: in.processed}
-	out.GaugeLast[5] = Gauge_t{Label: "size", Value: int64(in.hit_end_size)}
+	_, rps := in.average.Value(ts)
+	med, avg, max, size := in.median.Value(ts)
+	out.GaugeCurrent = append(out.GaugeCurrent,
+		Gauge_t{Type: "rps", Value: rps},
+		Gauge_t{Type: "hits", Value: in.hits},
+		Gauge_t{Type: "pending", Value: in.pending},
+		Gauge_t{Type: "med", Value: med.Nanoseconds()},
+		Gauge_t{Type: "max", Value: avg.Nanoseconds()},
+		Gauge_t{Type: "avg", Value: max.Nanoseconds()},
+		Gauge_t{Type: "size", Value: int64(size)},
+	)
 
-	out.DurationLast[0] = Duration_t{Label: "med", Value: in.hit_end_med}
-	out.DurationLast[1] = Duration_t{Label: "max", Value: in.hit_end_max}
-	out.DurationLast[2] = Duration_t{Label: "avg", Value: in.hit_end_avg}
+	for k, v := range in.processed {
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "processed", Status: k, Value: v})
+	}
 
-	var size int
-	out.DurationCurrent[0].Label = "med"
-	out.DurationCurrent[1].Label = "max"
-	out.DurationCurrent[2].Label = "avg"
-	out.DurationCurrent[0].Value, out.DurationCurrent[1].Value, out.DurationCurrent[2].Value, size = in.median.Value(ts)
+	for k, v := range in.errors {
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "errors", Status: k, Value: v})
+	}
 
-	out.GaugeCurrent[0].Label = "rps"
-	_, out.GaugeCurrent[0].Value = in.average.Value(ts)
-	out.GaugeCurrent[1] = Gauge_t{Label: "size", Value: int64(size)}
+	out.GaugeLast = append(out.GaugeLast,
+		Gauge_t{Type: "rps", Value: in.rps},
+		Gauge_t{Type: "med", Value: in.hit_end_med.Nanoseconds()},
+		Gauge_t{Type: "max", Value: in.hit_end_max.Nanoseconds()},
+		Gauge_t{Type: "avg", Value: in.hit_end_avg.Nanoseconds()},
+		Gauge_t{Type: "size", Value: int64(in.hit_end_size)},
+	)
 	return
 }
