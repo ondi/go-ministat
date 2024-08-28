@@ -87,8 +87,10 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed int64, status string, errors string) {
 	self.mx.Lock()
 	counter.pending--
-	counter.errors[errors] += processed
 	counter.processed[status] += processed
+	if len(errors) > 0 {
+		counter.errors[errors] += processed
+	}
 	counter.hit_end_med, counter.hit_end_max, counter.hit_end_avg, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
 	self.mx.Unlock()
 	return
@@ -162,6 +164,8 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 
 	out.GaugeLast = append(out.GaugeLast,
 		Gauge_t{Type: "rps", Value: in.rps},
+		Gauge_t{Type: "hits", Value: in.hits},
+		Gauge_t{Type: "pending", Value: in.pending},
 		Gauge_t{Type: "med", Value: in.hit_end_med.Nanoseconds()},
 		Gauge_t{Type: "max", Value: in.hit_end_max.Nanoseconds()},
 		Gauge_t{Type: "avg", Value: in.hit_end_avg.Nanoseconds()},
