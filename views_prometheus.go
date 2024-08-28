@@ -54,27 +54,27 @@ func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge
 	for _, v := range g {
 		switch v.Type {
 		case "processed":
-			_processed, err = self.Processed.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry, "status": v.Status})
+			_processed, err = self.Processed.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry, "status": v.Status})
 			if err != nil {
-				return
+				continue
 			}
 			_processed.Set(float64(v.Value))
 		case "errors":
-			_error, err = self.Error.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry, "error": v.Status})
+			_error, err = self.Error.GetMetricWith(prometheus.Labels{"page": page.Name, "entry": page.Entry, "error": v.Status})
 			if err != nil {
-				return
+				continue
 			}
 			_error.Set(float64(v.Value))
 		case "med", "max", "avg":
 			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry})
 			if err != nil {
-				return
+				continue
 			}
 			_latency.Set(float64(v.Value))
 		default:
 			_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry})
 			if err != nil {
-				return
+				continue
 			}
 			_load.Set(float64(v.Value))
 		}
