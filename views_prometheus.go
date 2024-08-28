@@ -50,7 +50,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 }
 
 func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge_t) (err error) {
-	var _load, _processed, _error prometheus.Gauge
+	var _load, _latency, _processed, _error prometheus.Gauge
 	for _, v := range g {
 		switch v.Type {
 		case "processed":
@@ -65,6 +65,12 @@ func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge
 				return
 			}
 			_error.Set(float64(v.Value))
+		case "med", "max", "avg":
+			_latency, err = self.Latency.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry})
+			if err != nil {
+				return
+			}
+			_latency.Set(float64(v.Value))
 		default:
 			_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Type, "page": page.Name, "entry": page.Entry})
 			if err != nil {
