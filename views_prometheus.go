@@ -26,7 +26,7 @@ type Prometheus_t struct {
 // mux.Handle("/debug/metrics", promhttp.Handler())
 func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	self := &Prometheus_t{
-		Load: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "load"}, []string{"type", "entry", "page", "result"}),
+		Load: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: prefix + "load"}, []string{"entry", "page", "type", "result"}),
 	}
 	if err = prometheus.Register(self.Load); err != nil {
 		return
@@ -37,14 +37,11 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge_t) (err error) {
 	var _load prometheus.Gauge
 	for _, v := range g {
-		switch v.Type {
-		default:
-			_load, err = self.Load.GetMetricWith(prometheus.Labels{"type": v.Type, "entry": page.Entry, "page": page.Name, "result": v.Result})
-			if err != nil {
-				continue
-			}
-			_load.Set(float64(v.Value))
+		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.Type, "result": v.Result})
+		if err != nil {
+			continue
 		}
+		_load.Set(float64(v.Value))
 	}
 	return
 }
