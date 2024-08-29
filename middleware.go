@@ -16,13 +16,13 @@ import (
 
 // Key_t for storage
 type Page_t struct {
-	Name  string // page name
 	Entry string // shard
+	Name  string // page name
 }
 
 type Gauge_t struct {
 	Type   string
-	Status string
+	Result string
 	Value  int64
 }
 

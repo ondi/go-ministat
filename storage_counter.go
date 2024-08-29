@@ -165,12 +165,12 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	)
 
 	for k, v := range in.processed {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "processed", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "processed", Status: k, Value: v})
+		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "processed", Result: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "processed", Result: k, Value: v})
 	}
 	for k, v := range in.errors {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "errors", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "errors", Status: k, Value: v})
+		out.GaugeLast = append(out.GaugeLast, Gauge_t{Type: "errors", Result: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t{Type: "errors", Result: k, Value: v})
 	}
 	return
 }
