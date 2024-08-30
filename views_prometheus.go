@@ -13,8 +13,6 @@
 package ministat
 
 import (
-	"context"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -34,7 +32,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	return self, err
 }
 
-func (self *Prometheus_t) HitCurrent(ctx context.Context, page Page_t, g []Gauge_t) (err error) {
+func (self *Prometheus_t) HitCurrent(page Page_t, g []Gauge_t) (err error) {
 	var _load prometheus.Gauge
 	for _, v := range g {
 		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.Type, "result": v.Result})

@@ -27,7 +27,7 @@ type Gauge_t struct {
 }
 
 type Views[Key_t comparable] interface {
-	HitCurrent(ctx context.Context, page Key_t, g []Gauge_t) (err error)
+	HitCurrent(page Key_t, g []Gauge_t) (err error)
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
