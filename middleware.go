@@ -16,14 +16,14 @@ import (
 
 // Key_t for storage
 type Page_t struct {
-	Entry string // shard
-	Name  string // page name
+	Entry string `json:"entry"` // shard
+	Name  string `json:"name"`  // page
 }
 
 type Gauge_t struct {
-	Type   string
-	Result string
-	Value  int64
+	Type   string `json:"type"`
+	Result string `json:"result"`
+	Value  int64  `json:"value"`
 }
 
 type Views[Key_t comparable] interface {
