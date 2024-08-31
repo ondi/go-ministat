@@ -109,7 +109,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			}
 			return false
 		})
-		self.log_write(r.Context(), "RESPONSE: %s status=%d resp=%#q, req=%#q, errors=%#q",
-			r.URL.String(), writer.status_code, writer_buf.Bytes(), reader_buf.Bytes(), errors)
+		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, errors=%#q",
+			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}
 }
