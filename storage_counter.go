@@ -29,6 +29,7 @@ type Counter_t struct {
 }
 
 type Result_t struct {
+	HitBeginTs   time.Time
 	GaugeCurrent []Gauge_t
 	GaugeLast    []Gauge_t
 }
@@ -139,6 +140,8 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 }
 
 func to_result(in *Counter_t, ts time.Time) (out Result_t) {
+	out.HitBeginTs = in.hit_begin_ts
+
 	out.GaugeLast = append(out.GaugeLast,
 		Gauge_t{Type: "rps", Value: in.rps},
 		Gauge_t{Type: "hits", Value: in.hits},
