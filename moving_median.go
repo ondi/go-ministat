@@ -44,7 +44,7 @@ func NewMedian[T Number](limit int, ttl time.Duration) (self *Median_t[T]) {
 	return
 }
 
-// median, max, avg, size
+// med, avg, max, size
 func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, T, int) {
 	self.Evict(ts)
 	it, inserted := self.cx.CreateBack(
@@ -114,7 +114,7 @@ func (self *Median_t[T]) Add(ts time.Time, data T) (T, T, T, int) {
 		cache.SetNext(it, at)
 	}
 	self.move_median()
-	return self.median.Value.Data, self.cx.Back().Value.Data, self.sum / T(self.cx.Size()), self.cx.Size()
+	return self.median.Value.Data, self.sum / T(self.cx.Size()), self.cx.Back().Value.Data, self.cx.Size()
 }
 
 func (self *Median_t[T]) move_median() {

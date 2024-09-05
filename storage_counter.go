@@ -18,9 +18,10 @@ type Counter_t struct {
 	processed    map[string]int64
 	errors       map[string]int64
 	hit_begin_ts time.Time
+	hit_end_ts   time.Time
 	hit_end_med  time.Duration
-	hit_end_max  time.Duration
 	hit_end_avg  time.Duration
+	hit_end_max  time.Duration
 	hit_end_size int
 	sampling     int64
 	rps          int64
@@ -30,6 +31,7 @@ type Counter_t struct {
 
 type Result_t struct {
 	BeginTs      time.Time
+	EndTs        time.Time
 	GaugeCurrent []Gauge
 	GaugeLast    []Gauge
 }
@@ -91,7 +93,8 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end ti
 	if len(errors) > 0 {
 		counter.errors[errors] += processed
 	}
-	counter.hit_end_med, counter.hit_end_max, counter.hit_end_avg, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
+	counter.hit_end_ts = end
+	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
 	self.mx.Unlock()
 	return
 }
@@ -141,6 +144,7 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 
 func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	out.BeginTs = in.hit_begin_ts
+	out.EndTs = in.hit_end_ts
 
 	out.GaugeLast = append(out.GaugeLast,
 		GaugeInt64_t{Type: "rps", Value: in.rps},
