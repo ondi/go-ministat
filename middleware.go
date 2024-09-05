@@ -14,20 +14,21 @@ import (
 	"unicode"
 )
 
-// Key_t for storage
+// [Key_t comparable] for storage
 type Page_t struct {
 	Entry string `json:"entry"` // shard
 	Name  string `json:"name"`  // page
 }
 
-type Gauge_t struct {
-	Type   string `json:"type"`
-	Result string `json:"result"`
-	Value  int64  `json:"value"`
+type Gauge interface {
+	GetType() string
+	GetResult() string
+	GetValueInt64() int64
+	String() string
 }
 
 type Views[Key_t comparable] interface {
-	HitCurrent(page Key_t, g []Gauge_t) (err error)
+	HitCurrent(page Key_t, g []Gauge) (err error)
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t

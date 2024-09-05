@@ -32,14 +32,14 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 	return self, err
 }
 
-func (self *Prometheus_t) HitCurrent(page Page_t, g []Gauge_t) (err error) {
+func (self *Prometheus_t) HitCurrent(page Page_t, g []Gauge) (err error) {
 	var _load prometheus.Gauge
 	for _, v := range g {
-		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.Type, "result": v.Result})
+		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.GetType(), "result": v.GetResult()})
 		if err != nil {
 			continue
 		}
-		_load.Set(float64(v.Value))
+		_load.Set(float64(v.GetValueInt64()))
 	}
 	return
 }

@@ -42,5 +42,5 @@ func Test_Get01(t *testing.T) {
 	s.HitBegin("test1", ts)
 	res, ok := s.HitGet(ts, "test1")
 	assert.Assert(t, ok, ok)
-	assert.Assert(t, res.GaugeLast[0].Value == 1, res.GaugeLast)
+	assert.Assert(t, res.GaugeLast[0].GetValueInt64() == 1, res.GaugeLast)
 }
