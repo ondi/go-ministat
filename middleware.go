@@ -9,16 +9,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 	"unicode"
 )
-
-// [Key_t comparable] for storage
-type Page_t struct {
-	Entry string `json:"entry"` // shard
-	Name  string `json:"name"`  // page
-}
 
 type Gauge interface {
 	GetType() string
@@ -34,49 +27,6 @@ type Views[Key_t comparable] interface {
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
 type LogWrite_t func(ctx context.Context, format string, args ...interface{})
 type LogRead_t func(ctx context.Context, f func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool)
-
-type _429_t struct {
-	log  LogWrite_t
-	ts   time.Time
-	diff time.Duration
-}
-
-func New429(log LogWrite_t, diff time.Duration) http.Handler {
-	self := &_429_t{
-		log:  log,
-		diff: diff,
-	}
-	return self
-}
-
-func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ts := time.Now()
-	if ts.Sub(self.ts) > self.diff {
-		self.ts = ts
-		self.log(r.Context(), "TOO MANY REQUESTS: %q", r.URL.Path)
-	}
-	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
-}
-
-func GetPageName(r *http.Request) Page_t {
-	return Page_t{
-		Name:  r.URL.Path,
-		Entry: "",
-	}
-}
-
-func NoErrors(ctx context.Context, sb *strings.Builder) *strings.Builder {
-	return sb
-}
-
-func NoLog(ctx context.Context, format string, args ...interface{}) {}
-
-func CountErrors(status_code int) int64 {
-	if status_code >= 400 {
-		return 1
-	}
-	return 0
-}
 
 type Middleware_t[Key_t comparable] struct {
 	storage       *Storage_t[Key_t]
