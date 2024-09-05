@@ -146,11 +146,11 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t{Type: "rps", Value: in.rps},
 		Gauge_t{Type: "hits", Value: in.hits},
 		Gauge_t{Type: "pending", Value: in.pending},
+		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 		Gauge_t{Type: "latency/med", Value: in.hit_end_med.Nanoseconds()},
 		Gauge_t{Type: "latency/max", Value: in.hit_end_max.Nanoseconds()},
 		Gauge_t{Type: "latency/avg", Value: in.hit_end_avg.Nanoseconds()},
 		Gauge_t{Type: "latency/size", Value: int64(in.hit_end_size)},
-		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 	)
 
 	_, rps := in.average.Value(ts)
@@ -159,11 +159,11 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t{Type: "rps", Value: rps},
 		Gauge_t{Type: "hits", Value: in.hits},
 		Gauge_t{Type: "pending", Value: in.pending},
+		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 		Gauge_t{Type: "latency/med", Value: med.Nanoseconds()},
 		Gauge_t{Type: "latency/max", Value: avg.Nanoseconds()},
 		Gauge_t{Type: "latency/avg", Value: max.Nanoseconds()},
 		Gauge_t{Type: "latency/size", Value: int64(size)},
-		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 	)
 
 	for k, v := range in.processed {
