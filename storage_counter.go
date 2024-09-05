@@ -29,7 +29,7 @@ type Counter_t struct {
 }
 
 type Result_t struct {
-	HitBeginTs   time.Time
+	BeginTs      time.Time
 	GaugeCurrent []Gauge_t
 	GaugeLast    []Gauge_t
 }
@@ -140,7 +140,7 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 }
 
 func to_result(in *Counter_t, ts time.Time) (out Result_t) {
-	out.HitBeginTs = in.hit_begin_ts
+	out.BeginTs = in.hit_begin_ts
 
 	out.GaugeLast = append(out.GaugeLast,
 		Gauge_t{Type: "rps", Value: in.rps},
@@ -150,7 +150,7 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t{Type: "latency/max", Value: in.hit_end_max.Nanoseconds()},
 		Gauge_t{Type: "latency/avg", Value: in.hit_end_avg.Nanoseconds()},
 		Gauge_t{Type: "latency/size", Value: int64(in.hit_end_size)},
-		Gauge_t{Type: "active", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
+		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 	)
 
 	_, rps := in.average.Value(ts)
@@ -163,7 +163,7 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t{Type: "latency/max", Value: avg.Nanoseconds()},
 		Gauge_t{Type: "latency/avg", Value: max.Nanoseconds()},
 		Gauge_t{Type: "latency/size", Value: int64(size)},
-		Gauge_t{Type: "active", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
+		Gauge_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts).Nanoseconds()},
 	)
 
 	for k, v := range in.processed {
