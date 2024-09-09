@@ -118,6 +118,16 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 	return
 }
 
+func (self *Storage_t[Key_t]) HitReset(ts time.Time, name Key_t) (ok bool) {
+	self.mx.Lock()
+	res, ok := self.pages.Get(name)
+	if ok {
+		res.CounterReset()
+	}
+	self.mx.Unlock()
+	return
+}
+
 func (self *Storage_t[Key_t]) RangeSort(ts time.Time, order cache.Less_t[Key_t, *Counter_t], f func(name Key_t, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.RangeSort(
