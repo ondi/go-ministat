@@ -44,6 +44,15 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
+func (self *Counter_t) CounterReset() {
+	self.hit_begin_ts = time.Time{}
+	self.hit_end_ts = time.Time{}
+	self.hit_end_med = 0
+	self.hit_end_avg = 0
+	self.hit_end_max = 0
+	self.hit_end_size = 0
+}
+
 func NoEvict[Key_t comparable](page Key_t, value *Counter_t) {}
 
 type Storage_t[Key_t comparable] struct {
