@@ -29,13 +29,6 @@ type Counter_t struct {
 	pending      int64
 }
 
-type Result_t struct {
-	BeginTs      time.Time
-	EndTs        time.Time
-	GaugeCurrent []Gauge
-	GaugeLast    []Gauge
-}
-
 func (self *Counter_t) CounterAdd(a int64) {
 	self.sampling += a
 }
@@ -51,6 +44,13 @@ func (self *Counter_t) CounterReset() {
 	self.hit_end_avg = 0
 	self.hit_end_max = 0
 	self.hit_end_size = 0
+}
+
+type Result_t struct {
+	BeginTs      time.Time
+	EndTs        time.Time
+	GaugeCurrent []Gauge
+	GaugeLast    []Gauge
 }
 
 func NoEvict[Key_t comparable](page Key_t, value *Counter_t) {}
