@@ -118,12 +118,16 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 	return
 }
 
-func (self *Storage_t[Key_t]) HitReset(name Key_t) (ok bool) {
+func (self *Storage_t[Key_t]) HitReset(cmp func(Key_t) bool) {
 	self.mx.Lock()
-	res, ok := self.pages.Get(name)
-	if ok {
-		res.CounterReset()
-	}
+	self.pages.Range(
+		func(key Key_t, value *Counter_t) bool {
+			if cmp(key) {
+				value.CounterReset()
+			}
+			return true
+		},
+	)
 	self.mx.Unlock()
 	return
 }
