@@ -118,7 +118,7 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 	return
 }
 
-func (self *Storage_t[Key_t]) HitReset(cmp func(Key_t) bool) {
+func (self *Storage_t[Key_t]) HitResetRange(cmp func(Key_t) bool) {
 	self.mx.Lock()
 	self.pages.Range(
 		func(key Key_t, value *Counter_t) bool {
