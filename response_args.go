@@ -50,13 +50,17 @@ func (self *LimitWriter_t) Write(p []byte) (n int, err error) {
 	if self.Limit >= len(p) {
 		n, err = self.Buf.Write(p)
 	} else {
-		for ; self.Limit > 0; self.Limit-- {
-			if r, _ := utf8.DecodeLastRune(p[:self.Limit]); r != utf8.RuneError {
-				break
-			}
-		}
-		n, err = self.Buf.Write(p[:self.Limit])
+		n, err = self.Buf.Write(TrimBadRune(p, self.Limit))
 	}
 	self.Limit -= n
 	return
+}
+
+func TrimBadRune(in []byte, len_in int) []byte {
+	for ; len_in > 0; len_in-- {
+		if r, _ := utf8.DecodeLastRune(in[:len_in]); r != utf8.RuneError {
+			break
+		}
+	}
+	return in[:len_in]
 }
