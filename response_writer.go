@@ -91,12 +91,12 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	writer := Writer_t{ResponseWriter_t: ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}, LimitWriter_t: LimitWriter_t{Buf: &writer_buf, Limit: self.resp_limit}}
 	reader := Reader_t{ReadCloser: r.Body, LimitWriter_t: LimitWriter_t{Buf: &reader_buf, Limit: self.req_limit}}
 	r.Body = &reader
-	_, ok := self.exclude.Search(r.URL.Path)
-	if !ok {
+	_, _, found := self.exclude.Search(r.URL.Path)
+	if found == 0 {
 		self.log_write(r.Context(), "REQUEST: %s", r.URL.String())
 	}
 	self.next.ServeHTTP(&writer, r)
-	if !ok {
+	if found == 0 {
 		var errors string
 		self.log_read(r.Context(), func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
 			if level_id < 3 {
