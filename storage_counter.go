@@ -23,10 +23,10 @@ type Counter_t struct {
 	hit_end_avg  time.Duration
 	hit_end_max  time.Duration
 	hit_end_size int
-	sampling     int64
-	rps          int64
+	hit_rps      int64
 	hits         int64
 	pending      int64
+	sampling     int64
 }
 
 func (self *Counter_t) CounterAdd(a int64) {
@@ -38,13 +38,13 @@ func (self *Counter_t) CounterGet() int64 {
 }
 
 func (self *Counter_t) CounterReset() {
-	self.rps = 0
 	self.hit_begin_ts = time.Time{}
 	self.hit_end_ts = time.Time{}
 	self.hit_end_med = 0
 	self.hit_end_avg = 0
 	self.hit_end_max = 0
 	self.hit_end_size = 0
+	self.hit_rps = 0
 }
 
 type Result_t struct {
@@ -87,11 +87,11 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	)
 	counter.hits++
 	counter.pending++
-	_, counter.rps = counter.average.Add(begin, 0)
+	_, counter.hit_rps = counter.average.Add(begin, 0)
 	counter.hit_begin_ts = begin
 	sampling = counter.sampling
 	pending = counter.pending
-	rps = counter.rps
+	rps = counter.hit_rps
 	self.mx.Unlock()
 	return
 }
@@ -176,7 +176,7 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	}
 
 	out.GaugeLast = append(out.GaugeLast,
-		GaugeInt64_t{Type: "rps", Value: in.rps},
+		GaugeInt64_t{Type: "rps", Value: in.hit_rps},
 		GaugeInt64_t{Type: "hits", Value: in.hits},
 		GaugeInt64_t{Type: "pending", Value: in.pending},
 		GaugeDuration_t{Type: "idle", Value: idle},
