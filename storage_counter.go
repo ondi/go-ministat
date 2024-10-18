@@ -38,6 +38,7 @@ func (self *Counter_t) CounterGet() int64 {
 }
 
 func (self *Counter_t) CounterReset() {
+	self.rps = 0
 	self.hit_begin_ts = time.Time{}
 	self.hit_end_ts = time.Time{}
 	self.hit_end_med = 0
@@ -169,11 +170,16 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	out.BeginTs = in.hit_begin_ts
 	out.EndTs = in.hit_end_ts
 
+	var idle time.Duration
+	if in.hit_begin_ts.IsZero() == false {
+		idle = ts.Sub(in.hit_begin_ts)
+	}
+
 	out.GaugeLast = append(out.GaugeLast,
 		GaugeInt64_t{Type: "rps", Value: in.rps},
 		GaugeInt64_t{Type: "hits", Value: in.hits},
 		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
+		GaugeDuration_t{Type: "idle", Value: idle},
 		GaugeDuration_t{Type: "latency/med", Value: in.hit_end_med},
 		GaugeDuration_t{Type: "latency/avg", Value: in.hit_end_avg},
 		GaugeDuration_t{Type: "latency/max", Value: in.hit_end_max},
@@ -186,7 +192,7 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		GaugeInt64_t{Type: "rps", Value: rps},
 		GaugeInt64_t{Type: "hits", Value: in.hits},
 		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
+		GaugeDuration_t{Type: "idle", Value: idle},
 		GaugeDuration_t{Type: "latency/med", Value: med},
 		GaugeDuration_t{Type: "latency/avg", Value: max},
 		GaugeDuration_t{Type: "latency/max", Value: avg},
