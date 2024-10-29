@@ -11,8 +11,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/ondi/go-tst"
 )
@@ -98,17 +96,10 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
 		var errors string
-		self.log_read(r.Context(), func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
-			if level_id < 3 {
-				return true
-			}
-			if ix := strings.Index(format, " "); ix > -1 {
-				errors = format[:ix]
-			} else {
-				errors = format
-			}
-			return false
-		})
+		for _, v := range self.log_read(r.Context()) {
+			errors = v
+			break
+		}
 		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, errors=%#q",
 			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), errors)
 	}

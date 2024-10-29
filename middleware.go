@@ -6,11 +6,9 @@ package ministat
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
-	"unicode"
 )
 
 type Gauge interface {
@@ -26,7 +24,7 @@ type Views[Key_t comparable] interface {
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
 type LogWrite_t func(ctx context.Context, format string, args ...interface{})
-type LogRead_t func(ctx context.Context, f func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool)
+type LogRead_t func(ctx context.Context) []string
 
 type Middleware_t[Key_t comparable] struct {
 	storage       *Storage_t[Key_t]
@@ -65,24 +63,9 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 func (self *Middleware_t[Key_t]) serve_done(ctx context.Context, counter *Counter_t, name Key_t, start time.Time, writer *ResponseWriter_t) {
 	var errors string
-	self.log_read(ctx, func(ts time.Time, file string, line int, level_name string, level_id int64, format string, args ...any) bool {
-		if level_id < 3 {
-			return true
-		}
-		errors = FirstWords(fmt.Sprintf(format, args...), 3)
-		return false
-	})
-	self.storage.HitEnd(counter, start, time.Now(), 1, strconv.FormatInt(int64(writer.status_code), 10), errors)
-}
-
-func FirstWords(in string, count int) string {
-	for i, v := range in {
-		if unicode.IsSpace(v) {
-			count--
-			if count <= 0 {
-				return in[0:i]
-			}
-		}
+	for _, v := range self.log_read(ctx) {
+		errors = v
+		break
 	}
-	return in
+	self.storage.HitEnd(counter, start, time.Now(), 1, strconv.FormatInt(int64(writer.status_code), 10), errors)
 }
