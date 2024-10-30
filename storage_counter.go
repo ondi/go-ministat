@@ -194,8 +194,8 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		GaugeInt64_t{Type: "pending", Value: in.pending},
 		GaugeDuration_t{Type: "idle", Value: idle},
 		GaugeDuration_t{Type: "latency/med", Value: med},
-		GaugeDuration_t{Type: "latency/avg", Value: max},
-		GaugeDuration_t{Type: "latency/max", Value: avg},
+		GaugeDuration_t{Type: "latency/avg", Value: avg},
+		GaugeDuration_t{Type: "latency/max", Value: max},
 		GaugeInt64_t{Type: "latency/size", Value: int64(size)},
 	)
 

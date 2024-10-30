@@ -153,11 +153,11 @@ func (self *Median_t[T]) begin() (begin int) {
 	return
 }
 
-func (self *Median_t[T]) Value(ts time.Time) (median T, max T, avg T, size int) {
+func (self *Median_t[T]) Value(ts time.Time) (med T, avg T, max T, size int) {
 	if size = self.Evict(ts); size > 0 {
 		avg = self.sum / T(size)
 	}
-	median = self.median.Value.Data
+	med = self.median.Value.Data
 	max = self.cx.Back().Value.Data
 	return
 }
