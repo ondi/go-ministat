@@ -61,22 +61,22 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 }
 
 type ResponseLogger_t struct {
-	next       http.Handler
-	log_write  LogWrite_t
-	log_read   LogRead_t
-	req_limit  int
-	resp_limit int
-	exclude    *tst.Tree3_t[int]
+	next           http.Handler
+	log_write      LogWrite_t
+	log_get_errors LogGetErrors_t
+	req_limit      int
+	resp_limit     int
+	exclude        *tst.Tree3_t[int]
 }
 
-func NewResponseLogger(next http.Handler, log_write LogWrite_t, log_read LogRead_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log_write LogWrite_t, log_get_errors LogGetErrors_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
-		next:       next,
-		log_write:  log_write,
-		log_read:   log_read,
-		req_limit:  req_limit,
-		resp_limit: resp_limit,
-		exclude:    tst.NewTree3[int](),
+		next:           next,
+		log_write:      log_write,
+		log_get_errors: log_get_errors,
+		req_limit:      req_limit,
+		resp_limit:     resp_limit,
+		exclude:        tst.NewTree3[int](),
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
@@ -95,12 +95,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		var errors string
-		for _, v := range self.log_read(r.Context()) {
-			errors = v
-			break
-		}
 		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, errors=%#q",
-			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), errors)
+			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), self.log_get_errors(r.Context()))
 	}
 }
