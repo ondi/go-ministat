@@ -133,6 +133,20 @@ func (self *Storage_t[Key_t]) HitResetRange(cmp func(Key_t) bool) {
 	return
 }
 
+func (self *Storage_t[Key_t]) HitRemoveRange(cmp func(Key_t) bool) {
+	self.mx.Lock()
+	self.pages.Range(
+		func(key Key_t, value *Counter_t) bool {
+			if cmp(key) {
+				self.pages.Del(key)
+			}
+			return true
+		},
+	)
+	self.mx.Unlock()
+	return
+}
+
 func (self *Storage_t[Key_t]) RangeSort(ts time.Time, order cache.Less_t[Key_t, *Counter_t], f func(name Key_t, res Result_t) bool) {
 	self.mx.Lock()
 	self.pages.RangeSort(
