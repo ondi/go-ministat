@@ -37,16 +37,6 @@ func (self *Counter_t) CounterGet() int64 {
 	return self.sampling
 }
 
-func (self *Counter_t) CounterReset() {
-	self.hit_begin_ts = time.Time{}
-	self.hit_end_ts = time.Time{}
-	self.hit_end_med = 0
-	self.hit_end_avg = 0
-	self.hit_end_max = 0
-	self.hit_end_size = 0
-	self.hit_rps = 0
-}
-
 type Result_t struct {
 	BeginTs      time.Time
 	EndTs        time.Time
@@ -119,20 +109,6 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 	return
 }
 
-func (self *Storage_t[Key_t]) HitResetRange(cmp func(Key_t) bool) {
-	self.mx.Lock()
-	self.pages.Range(
-		func(key Key_t, value *Counter_t) bool {
-			if cmp(key) {
-				value.CounterReset()
-			}
-			return true
-		},
-	)
-	self.mx.Unlock()
-	return
-}
-
 func (self *Storage_t[Key_t]) HitRemoveRange(cmp func(Key_t) bool) {
 	self.mx.Lock()
 	self.pages.Range(
@@ -184,16 +160,11 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 	out.BeginTs = in.hit_begin_ts
 	out.EndTs = in.hit_end_ts
 
-	var idle time.Duration
-	if in.hit_begin_ts.IsZero() == false {
-		idle = ts.Sub(in.hit_begin_ts)
-	}
-
 	out.GaugeLast = append(out.GaugeLast,
 		GaugeInt64_t{Type: "rps", Value: in.hit_rps},
 		GaugeInt64_t{Type: "hits", Value: in.hits},
 		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: idle},
+		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
 		GaugeDuration_t{Type: "latency/med", Value: in.hit_end_med},
 		GaugeDuration_t{Type: "latency/avg", Value: in.hit_end_avg},
 		GaugeDuration_t{Type: "latency/max", Value: in.hit_end_max},
@@ -206,7 +177,7 @@ func to_result(in *Counter_t, ts time.Time) (out Result_t) {
 		GaugeInt64_t{Type: "rps", Value: rps},
 		GaugeInt64_t{Type: "hits", Value: in.hits},
 		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: idle},
+		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
 		GaugeDuration_t{Type: "latency/med", Value: med},
 		GaugeDuration_t{Type: "latency/avg", Value: avg},
 		GaugeDuration_t{Type: "latency/max", Value: max},
