@@ -103,8 +103,15 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 	self.mx.Lock()
 	res, ok := self.pages.Get(name)
 	if ok {
-		out = to_result(res, ts)
+		out = ToResult(res, ts)
 	}
+	self.mx.Unlock()
+	return
+}
+
+func (self *Storage_t[Key_t]) HitRemove(name Key_t) (ok bool) {
+	self.mx.Lock()
+	ok = self.pages.Del(name)
 	self.mx.Unlock()
 	return
 }
@@ -128,7 +135,7 @@ func (self *Storage_t[Key_t]) RangeSort(ts time.Time, order cache.Less_t[Key_t, 
 	self.pages.RangeSort(
 		order,
 		func(key Key_t, value *Counter_t) bool {
-			return f(key, to_result(value, ts))
+			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -138,7 +145,7 @@ func (self *Storage_t[Key_t]) Range(ts time.Time, f func(name Key_t, res Result_
 	self.mx.Lock()
 	self.pages.Range(
 		func(key Key_t, value *Counter_t) bool {
-			return f(key, to_result(value, ts))
+			return f(key, ToResult(value, ts))
 		},
 	)
 	self.mx.Unlock()
@@ -156,7 +163,7 @@ func LessDuration[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cach
 	return a.Value.median.median.Value.Data < b.Value.median.median.Value.Data
 }
 
-func to_result(in *Counter_t, ts time.Time) (out Result_t) {
+func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.BeginTs = in.hit_begin_ts
 	out.EndTs = in.hit_end_ts
 
