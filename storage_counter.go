@@ -168,36 +168,36 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.EndTs = in.hit_end_ts
 
 	out.GaugeLast = append(out.GaugeLast,
-		GaugeInt64_t{Type: "rps", Value: in.hit_rps},
-		GaugeInt64_t{Type: "hits", Value: in.hits},
-		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
-		GaugeDuration_t{Type: "latency/med", Value: in.hit_end_med},
-		GaugeDuration_t{Type: "latency/avg", Value: in.hit_end_avg},
-		GaugeDuration_t{Type: "latency/max", Value: in.hit_end_max},
-		GaugeInt64_t{Type: "latency/size", Value: int64(in.hit_end_size)},
+		Gauge_t[int64]{Type: "rps", Value: in.hit_rps},
+		Gauge_t[int64]{Type: "hits", Value: in.hits},
+		Gauge_t[int64]{Type: "pending", Value: in.pending},
+		Gauge_t[time.Duration]{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
+		Gauge_t[time.Duration]{Type: "latency/med", Value: in.hit_end_med},
+		Gauge_t[time.Duration]{Type: "latency/avg", Value: in.hit_end_avg},
+		Gauge_t[time.Duration]{Type: "latency/max", Value: in.hit_end_max},
+		Gauge_t[int64]{Type: "latency/size", Value: int64(in.hit_end_size)},
 	)
 
 	_, rps := in.average.Value(ts)
 	med, avg, max, size := in.median.Value(ts)
 	out.GaugeCurrent = append(out.GaugeCurrent,
-		GaugeInt64_t{Type: "rps", Value: rps},
-		GaugeInt64_t{Type: "hits", Value: in.hits},
-		GaugeInt64_t{Type: "pending", Value: in.pending},
-		GaugeDuration_t{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
-		GaugeDuration_t{Type: "latency/med", Value: med},
-		GaugeDuration_t{Type: "latency/avg", Value: avg},
-		GaugeDuration_t{Type: "latency/max", Value: max},
-		GaugeInt64_t{Type: "latency/size", Value: int64(size)},
+		Gauge_t[int64]{Type: "rps", Value: rps},
+		Gauge_t[int64]{Type: "hits", Value: in.hits},
+		Gauge_t[int64]{Type: "pending", Value: in.pending},
+		Gauge_t[time.Duration]{Type: "idle", Value: ts.Sub(in.hit_begin_ts)},
+		Gauge_t[time.Duration]{Type: "latency/med", Value: med},
+		Gauge_t[time.Duration]{Type: "latency/avg", Value: avg},
+		Gauge_t[time.Duration]{Type: "latency/max", Value: max},
+		Gauge_t[int64]{Type: "latency/size", Value: int64(size)},
 	)
 
 	for k, v := range in.processed {
-		out.GaugeLast = append(out.GaugeLast, GaugeInt64_t{Type: "processed", Result: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, GaugeInt64_t{Type: "processed", Result: k, Value: v})
+		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Type: "processed", Result: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Type: "processed", Result: k, Value: v})
 	}
 	for k, v := range in.errors {
-		out.GaugeLast = append(out.GaugeLast, GaugeInt64_t{Type: "errors", Result: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, GaugeInt64_t{Type: "errors", Result: k, Value: v})
+		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Type: "errors", Result: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Type: "errors", Result: k, Value: v})
 	}
 	return
 }
