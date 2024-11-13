@@ -45,27 +45,31 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
-type Gauge_t[T ~int64] struct {
-	Type   string `json:"type"`
-	Result string `json:"result"`
+type Gauge_t[T ~int64 | ~float64] struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
 	Value  T      `json:"value"`
 }
 
-func (self Gauge_t[T]) GetType() string {
-	return self.Type
+func (self Gauge_t[T]) GetName() string {
+	return self.Name
 }
 
-func (self Gauge_t[T]) GetResult() string {
-	return self.Result
+func (self Gauge_t[T]) GetStatus() string {
+	return self.Status
 }
 
 func (self Gauge_t[T]) GetValueInt64() int64 {
 	return (int64)(self.Value)
 }
 
+func (self Gauge_t[T]) GetValueString() string {
+	return fmt.Sprintf("%v", self.Value)
+}
+
 func (self Gauge_t[T]) String() string {
-	if len(self.Result) > 0 {
-		return fmt.Sprintf("{%s:%v %q}", self.Type, self.Value, self.Result)
+	if len(self.Status) > 0 {
+		return fmt.Sprintf("{%s:%v %q}", self.Name, self.Value, self.Status)
 	}
-	return fmt.Sprintf("{%s:%v}", self.Type, self.Value)
+	return fmt.Sprintf("{%s:%v}", self.Name, self.Value)
 }

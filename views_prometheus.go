@@ -35,7 +35,7 @@ func NewPrometheusViews(prefix string) (views Views[Page_t], err error) {
 func (self *Prometheus_t) HitCurrent(page Page_t, g []Gauge) (err error) {
 	var _load prometheus.Gauge
 	for _, v := range g {
-		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.GetType(), "result": v.GetResult()})
+		_load, err = self.Load.GetMetricWith(prometheus.Labels{"entry": page.Entry, "page": page.Name, "type": v.GetName(), "result": v.GetStatus()})
 		if err != nil {
 			continue
 		}

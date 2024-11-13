@@ -12,9 +12,10 @@ import (
 )
 
 type Gauge interface {
-	GetType() string
-	GetResult() string
+	GetName() string
+	GetStatus() string
 	GetValueInt64() int64
+	GetValueString() string
 	String() string
 }
 
