@@ -39,7 +39,7 @@ func (self *Prometheus_t) HitCurrent(page Page_t, g []Gauge) (err error) {
 		if err != nil {
 			continue
 		}
-		_load.Set(float64(v.GetValueInt64()))
+		_load.Set(v.GetValueFloat64())
 	}
 	return
 }

@@ -15,6 +15,7 @@ type Gauge interface {
 	GetName() string
 	GetStatus() string
 	GetValueInt64() int64
+	GetValueFloat64() float64
 	GetValueString() string
 	String() string
 }

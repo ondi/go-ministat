@@ -63,6 +63,10 @@ func (self Gauge_t[T]) GetValueInt64() int64 {
 	return (int64)(self.Value)
 }
 
+func (self Gauge_t[T]) GetValueFloat64() float64 {
+	return (float64)(self.Value)
+}
+
 func (self Gauge_t[T]) GetValueString() string {
 	return fmt.Sprintf("%v", self.Value)
 }
