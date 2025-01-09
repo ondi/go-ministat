@@ -23,7 +23,7 @@ type Counter_t struct {
 	hit_end_avg  time.Duration
 	hit_end_max  time.Duration
 	hit_end_size int
-	hit_rps      int64
+	hit_rpm      int64
 	hits         int64
 	pending      int64
 	sampling     int64
@@ -62,14 +62,14 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 	return
 }
 
-func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, rps int64) {
+func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, rpm int64) {
 	self.mx.Lock()
 	counter, _ = self.pages.Add(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
 				median:    NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				average:   NewAverage[time.Duration](64, 1*time.Second),
+				average:   NewAverage[time.Duration](256, 60*time.Second),
 				processed: map[string]int64{},
 				errors:    map[string]int64{},
 			}
@@ -77,11 +77,11 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	)
 	counter.hits++
 	counter.pending++
-	_, counter.hit_rps = counter.average.Add(begin, 0)
+	_, counter.hit_rpm = counter.average.Add(begin, 0)
 	counter.hit_begin_ts = begin
 	sampling = counter.sampling
 	pending = counter.pending
-	rps = counter.hit_rps
+	rpm = counter.hit_rpm
 	self.mx.Unlock()
 	return
 }
@@ -168,7 +168,7 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.EndTs = in.hit_end_ts
 
 	out.GaugeLast = append(out.GaugeLast,
-		Gauge_t[int64]{Name: "rps", Value: in.hit_rps},
+		Gauge_t[int64]{Name: "rpm", Value: in.hit_rpm},
 		Gauge_t[int64]{Name: "hits", Value: in.hits},
 		Gauge_t[int64]{Name: "pending", Value: in.pending},
 		Gauge_t[time.Duration]{Name: "idle", Value: ts.Sub(in.hit_begin_ts)},
