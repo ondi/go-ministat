@@ -178,10 +178,10 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t[int64]{Name: "latency/size", Value: int64(in.hit_end_size)},
 	)
 
-	_, rps := in.average.Value(ts)
+	_, rpm := in.average.Value(ts)
 	med, avg, max, size := in.median.Value(ts)
 	out.GaugeCurrent = append(out.GaugeCurrent,
-		Gauge_t[int64]{Name: "rps", Value: rps},
+		Gauge_t[int64]{Name: "rpm", Value: rpm},
 		Gauge_t[int64]{Name: "hits", Value: in.hits},
 		Gauge_t[int64]{Name: "pending", Value: in.pending},
 		Gauge_t[time.Duration]{Name: "idle", Value: ts.Sub(in.hit_begin_ts)},

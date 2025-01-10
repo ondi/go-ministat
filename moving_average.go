@@ -54,12 +54,13 @@ func (self *Average_t[T]) Add(ts time.Time, data T) (T, int64) {
 
 func (self *Average_t[T]) Evict(ts time.Time) int {
 	for it := self.cx.Front(); it != self.cx.End(); it = it.Next() {
-		if self.cx.Size() <= self.buckets && ts.Before(it.Key) {
+		if self.cx.Size() > self.buckets || ts.Before(it.Key) == false {
+			self.total_sum -= it.Value.Data
+			self.total_count -= it.Value.Count
+			self.cx.Remove(it.Key)
+		} else {
 			return self.cx.Size()
 		}
-		self.total_sum -= it.Value.Data
-		self.total_count -= it.Value.Count
-		self.cx.Remove(it.Key)
 	}
 	return 0
 }
