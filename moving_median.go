@@ -131,16 +131,16 @@ func (self *Median_t[T]) move_median() {
 
 func (self *Median_t[T]) Evict(ts time.Time) int {
 	begin := self.begin()
-	for self.cx.Size() > 0 {
-		it, _ := self.cx.Find(begin)
-		if ts.Before(it.Value.Ts) {
+	for {
+		if it, ok := self.cx.Find(begin); ok && ts.Before(it.Value.Ts) == false {
+			self.sum -= it.Value.Data
+			self.remove(it)
+			begin++
+			if begin >= self.limit {
+				begin = 0
+			}
+		} else {
 			return self.cx.Size()
-		}
-		self.sum -= it.Value.Data
-		self.remove(it)
-		begin++
-		if begin >= self.limit {
-			begin = 0
 		}
 	}
 	return 0
