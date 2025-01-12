@@ -23,7 +23,6 @@ type Counter_t struct {
 	hit_end_avg  time.Duration
 	hit_end_max  time.Duration
 	hit_end_size int
-	hit_rpm      int64
 	hits         int64
 	pending      int64
 	sampling     int64
@@ -77,11 +76,10 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	)
 	counter.hits++
 	counter.pending++
-	_, counter.hit_rpm = counter.average.Add(begin, 0)
 	counter.hit_begin_ts = begin
 	sampling = counter.sampling
 	pending = counter.pending
-	rpm = counter.hit_rpm
+	_, rpm = counter.average.Add(begin, 0)
 	self.mx.Unlock()
 	return
 }
@@ -167,8 +165,9 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	out.BeginTs = in.hit_begin_ts
 	out.EndTs = in.hit_end_ts
 
+	_, rpm := in.average.Value(ts)
 	out.GaugeLast = append(out.GaugeLast,
-		Gauge_t[int64]{Name: "rpm", Value: in.hit_rpm},
+		Gauge_t[int64]{Name: "rpm", Value: rpm},
 		Gauge_t[int64]{Name: "hits", Value: in.hits},
 		Gauge_t[int64]{Name: "pending", Value: in.pending},
 		Gauge_t[time.Duration]{Name: "idle", Value: ts.Sub(in.hit_begin_ts)},
@@ -178,7 +177,6 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t[int64]{Name: "latency/size", Value: int64(in.hit_end_size)},
 	)
 
-	_, rpm := in.average.Value(ts)
 	med, avg, max, size := in.median.Value(ts)
 	out.GaugeCurrent = append(out.GaugeCurrent,
 		Gauge_t[int64]{Name: "rpm", Value: rpm},
