@@ -31,10 +31,26 @@ func Args(out io.Writer, args ...interface{}) {
 			}
 		}
 		switch data := v.(type) {
-		case []uint8, json.RawMessage:
+		case []uint8, string, json.RawMessage:
 			fmt.Fprintf(out, "'%s'", data)
-		case string:
-			fmt.Fprintf(out, "'%s'", data)
+		case *[]uint8:
+			if data == nil {
+				fmt.Fprintf(out, "<nil>")
+			} else {
+				fmt.Fprintf(out, "'%s'", *data)
+			}
+		case *string:
+			if data == nil {
+				fmt.Fprintf(out, "<nil>")
+			} else {
+				fmt.Fprintf(out, "'%s'", *data)
+			}
+		case *json.RawMessage:
+			if data == nil {
+				fmt.Fprintf(out, "<nil>")
+			} else {
+				fmt.Fprintf(out, "'%s'", *data)
+			}
 		default:
 			fmt.Fprintf(out, "%+v", data)
 		}
