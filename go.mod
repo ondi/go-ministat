@@ -1,12 +1,12 @@
 module github.com/ondi/go-ministat
 
-go 1.21
+go 1.23.0
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20241202144437-eda7f5ee386d
-	github.com/ondi/go-unique v0.0.0-20241101150602-6e5d28af9297
-	github.com/prometheus/client_golang v1.21.0
+	github.com/ondi/go-tst v0.0.0-20250316090829-343457f0ef97
+	github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed
+	github.com/prometheus/client_golang v1.21.1
 	gotest.tools v2.2.0+incompatible
 )
 
@@ -17,8 +17,8 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 )
