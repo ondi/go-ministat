@@ -18,6 +18,8 @@ github.com/ondi/go-tst v0.0.0-20250605095051-c02c56ff2f24 h1:PBZUfGhv1rGjgqahDJk
 github.com/ondi/go-tst v0.0.0-20250605095051-c02c56ff2f24/go.mod h1:cGrTydPs4pWqcOx8pasvmcCRSczZZ8wK30FDr2ZBiLI=
 github.com/ondi/go-tst v0.0.0-20250605124535-ba8b043dad05 h1:iHxFOvnHXIvvFRnnS7kR5q5/hsf8LxaV1svi7QuA50o=
 github.com/ondi/go-tst v0.0.0-20250605124535-ba8b043dad05/go.mod h1:cGrTydPs4pWqcOx8pasvmcCRSczZZ8wK30FDr2ZBiLI=
+github.com/ondi/go-tst v0.0.0-20250606081130-b6353b349958 h1:6UdQUiax4PYchzPNjcGTh+UsyLW4oXYBS5cv9+pIhh8=
+github.com/ondi/go-tst v0.0.0-20250606081130-b6353b349958/go.mod h1:cGrTydPs4pWqcOx8pasvmcCRSczZZ8wK30FDr2ZBiLI=
 github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed h1:VT0wWUw5FhZ+xDcT9APnZ9u+RbS5S9hL5mJie4docNE=
 github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed/go.mod h1:fHT/MobHpFLWEZCCeXoBvX3gJSVdtkLo4K84IPwXKyQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
