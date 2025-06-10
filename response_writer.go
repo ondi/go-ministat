@@ -99,7 +99,7 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		for _, v := range self.get_comment {
 			v(r.Context(), comments)
 		}
-		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, comments=%+v",
-			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), comments)
+		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, comments=%+v, resp=%#q, req=%#q",
+			writer.status_code, r.URL.String(), comments, writer_buf.Bytes(), reader_buf.Bytes())
 	}
 }
