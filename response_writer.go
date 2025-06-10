@@ -61,22 +61,22 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 }
 
 type ResponseLogger_t struct {
-	next           http.Handler
-	log_write      LogWrite_t
-	log_get_errors LogGetErrors_t
-	req_limit      int
-	resp_limit     int
-	exclude        *tst.Tree3_t[int]
+	next        http.Handler
+	log_write   LogWrite_t
+	req_limit   int
+	resp_limit  int
+	exclude     *tst.Tree3_t[int]
+	get_comment []GetComment_t
 }
 
-func NewResponseLogger(next http.Handler, log_write LogWrite_t, log_get_errors LogGetErrors_t, req_limit int, resp_limit int, excluse []string) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log_write LogWrite_t, req_limit int, resp_limit int, excluse []string, get_comment ...GetComment_t) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
-		next:           next,
-		log_write:      log_write,
-		log_get_errors: log_get_errors,
-		req_limit:      req_limit,
-		resp_limit:     resp_limit,
-		exclude:        tst.NewTree3[int](),
+		next:        next,
+		log_write:   log_write,
+		req_limit:   req_limit,
+		resp_limit:  resp_limit,
+		exclude:     tst.NewTree3[int](),
+		get_comment: get_comment,
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
@@ -95,7 +95,11 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, errors=%#q",
-			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), self.log_get_errors(r.Context()))
+		comments := map[string]string{}
+		for _, v := range self.get_comment {
+			v(r.Context(), comments)
+		}
+		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, resp=%#q, req=%#q, comments=%+v",
+			writer.status_code, r.URL.String(), writer_buf.Bytes(), reader_buf.Bytes(), comments)
 	}
 }
