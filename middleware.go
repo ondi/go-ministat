@@ -24,7 +24,7 @@ type Views[Key_t comparable] interface {
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
-type GetComment_t func(ctx context.Context, out map[string]string)
+type GetComment_t func(ctx context.Context, f func(key string, value string))
 type LogWrite_t func(ctx context.Context, format string, args ...interface{})
 
 type Middleware_t[Key_t comparable] struct {
@@ -55,11 +55,11 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer func() {
-		comments := map[string]string{}
+		comments := map[string]int64{}
 		for _, v := range self.get_comment {
-			v(r.Context(), comments)
+			v(r.Context(), func(key string, value string) { comments[key]++ })
 		}
-		self.storage.HitEnd(counter, ts, time.Now(), 1, strconv.FormatInt(int64(writer.status_code), 10), comments)
+		self.storage.HitEnd(counter, ts, time.Now(), map[string]int64{strconv.FormatInt(int64(writer.status_code), 10): 1}, comments)
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
 		self.next_passed.ServeHTTP(&writer, r)

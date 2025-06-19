@@ -84,17 +84,18 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed int64, status string, errors map[string]string) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed map[string]int64, errors map[string]int64) {
 	self.mx.Lock()
 	counter.pending--
-	counter.processed[status] += processed
-	for k := range errors {
-		counter.errors[k] += processed
+	for k, v := range processed {
+		counter.processed[k] += v
+	}
+	for k, v := range errors {
+		counter.errors[k] += v
 	}
 	counter.hit_end_ts = end
 	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
 	self.mx.Unlock()
-	return
 }
 
 func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok bool) {
@@ -125,7 +126,6 @@ func (self *Storage_t[Key_t]) HitRemoveRange(cmp func(Key_t) bool) {
 		},
 	)
 	self.mx.Unlock()
-	return
 }
 
 func (self *Storage_t[Key_t]) RangeSort(ts time.Time, order cache.Less_t[Key_t, *Counter_t], f func(name Key_t, res Result_t) bool) {
