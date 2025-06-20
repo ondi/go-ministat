@@ -95,9 +95,9 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		comments := map[string]int64{}
+		comments := map[string]string{}
 		for _, v := range self.get_comment {
-			v(r.Context(), func(key string, value string) { comments[key]++ })
+			v(r.Context(), func(key string, value string) { comments[key] = value })
 		}
 		self.log_write(r.Context(), "RESPONSE: status=%d, url=%s, comments=%+v, resp=%#q, req=%#q",
 			writer.status_code, r.URL.String(), comments, writer_buf.Bytes(), reader_buf.Bytes())
