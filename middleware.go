@@ -24,7 +24,7 @@ type Views[Key_t comparable] interface {
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
-type GetComment_t func(ctx context.Context, f func(key string, value string))
+type GetComment_t func(ctx context.Context, f func(key string, value string, args ...any))
 type LogWrite_t func(ctx context.Context, format string, args ...interface{})
 
 type Middleware_t[Key_t comparable] struct {
@@ -57,7 +57,7 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	defer func() {
 		comments := map[string]int64{}
 		for _, v := range self.get_comment {
-			v(r.Context(), func(key string, value string) { comments[key]++ })
+			v(r.Context(), func(key string, value string, args ...any) { comments[key]++ })
 		}
 		self.storage.HitEnd(counter, ts, time.Now(), map[string]int64{strconv.FormatInt(int64(writer.status_code), 10): 1}, comments)
 	}()
