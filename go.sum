@@ -10,8 +10,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a h1:GiJ4x7qusRIfRmC52vcXE8GfNojglGDEHAox37hxchs=
 github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a/go.mod h1:KHvTO08bISVccwhHh62tNAJHn/P9vS9RTDvW9CKX6hA=
-github.com/ondi/go-tst v0.0.0-20250627125258-b7c6f95fe6f5 h1:oA7UYSZcndMctsJ/5VjVanuDQ3/v9ocYobHslGd6oFo=
-github.com/ondi/go-tst v0.0.0-20250627125258-b7c6f95fe6f5/go.mod h1:cGrTydPs4pWqcOx8pasvmcCRSczZZ8wK30FDr2ZBiLI=
+github.com/ondi/go-tst v0.0.0-20250629173752-b64f724bcb74 h1:AMNeFzaqMMiVA5MOM7dE2h8IO4WP8YaJpVQ07CNc0Ro=
+github.com/ondi/go-tst v0.0.0-20250629173752-b64f724bcb74/go.mod h1:cGrTydPs4pWqcOx8pasvmcCRSczZZ8wK30FDr2ZBiLI=
 github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed h1:VT0wWUw5FhZ+xDcT9APnZ9u+RbS5S9hL5mJie4docNE=
 github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed/go.mod h1:fHT/MobHpFLWEZCCeXoBvX3gJSVdtkLo4K84IPwXKyQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
