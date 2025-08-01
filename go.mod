@@ -4,9 +4,9 @@ go 1.24
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20250724195645-dd8ab39a02f8
+	github.com/ondi/go-tst v0.0.0-20250801101809-99ac9636f08f
 	github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed
-	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/client_golang v1.23.0
 	gotest.tools v2.2.0+incompatible
 )
 
