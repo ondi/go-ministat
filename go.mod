@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20250914155847-4c119dcc4770
+	github.com/ondi/go-tst v0.0.0-20250915184132-5d65969597b3
 	github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed
 	github.com/prometheus/client_golang v1.23.2
 	gotest.tools v2.2.0+incompatible
