@@ -6,7 +6,6 @@ package ministat
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,8 +24,9 @@ type Views[Key_t comparable] interface {
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
-type GetComment_t func(ctx context.Context, f func(level_id int64, format string, args ...any) bool)
-type LogWrite_t func(ctx context.Context, format string, args ...interface{})
+type GetErrors_t func(ctx context.Context, out map[string]int64)
+type GetComments_t func(ctx context.Context, out map[string]string)
+type LogWrite_t func(ctx context.Context, format string, args ...any)
 
 type Middleware_t[Key_t comparable] struct {
 	storage       *Storage_t[Key_t]
@@ -35,10 +35,10 @@ type Middleware_t[Key_t comparable] struct {
 	page_name     GetPage_t[Key_t]
 	views         Views[Key_t]
 	pending_limit int64
-	get_comment   []GetComment_t
+	errors        []GetErrors_t
 }
 
-func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http.Handler, next_failed http.Handler, views Views[Key_t], page_name GetPage_t[Key_t], pending_limit int64, get_comment ...GetComment_t) *Middleware_t[Key_t] {
+func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http.Handler, next_failed http.Handler, views Views[Key_t], page_name GetPage_t[Key_t], pending_limit int64, errors ...GetErrors_t) *Middleware_t[Key_t] {
 	return &Middleware_t[Key_t]{
 		storage:       storage,
 		next_passed:   next_passed,
@@ -46,7 +46,7 @@ func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http
 		page_name:     page_name,
 		views:         views,
 		pending_limit: pending_limit,
-		get_comment:   get_comment,
+		errors:        errors,
 	}
 }
 
@@ -56,14 +56,11 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer func() {
-		comments := map[string]int64{}
-		for _, v := range self.get_comment {
-			v(r.Context(), func(level_id int64, format string, args ...any) bool {
-				comments[fmt.Sprintf("LEVEL%v", level_id)]++
-				return true
-			})
+		errors := map[string]int64{}
+		for _, v := range self.errors {
+			v(r.Context(), errors)
 		}
-		self.storage.HitEnd(counter, ts, time.Now(), map[string]int64{strconv.FormatInt(int64(writer.status_code), 10): 1}, comments)
+		self.storage.HitEnd(counter, ts, time.Now(), map[string]int64{strconv.FormatInt(int64(writer.status_code), 10): 1}, errors)
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
 		self.next_passed.ServeHTTP(&writer, r)
