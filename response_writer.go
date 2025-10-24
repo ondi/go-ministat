@@ -103,8 +103,9 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if found == 0 {
 		var comments []Comment_t
 		for _, v := range self.get_comment {
-			v(r.Context(), func(level_id int64, format string, args ...any) {
+			v(r.Context(), func(level_id int64, format string, args ...any) bool {
 				comments = append(comments, Comment_t{Level_id: level_id, Format: format, Args: args})
+				return true
 			})
 		}
 		self.log_write(r.Context(), "RESPONSE: %s, status=%d, comments=%+v, resp=%#q, req=%#q",
