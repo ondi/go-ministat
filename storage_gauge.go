@@ -59,6 +59,10 @@ func (self Gauge_t[T]) GetStatus() string {
 	return self.Status
 }
 
+func (self Gauge_t[T]) GetValue() T {
+	return self.Value
+}
+
 func (self Gauge_t[T]) GetValueInt64() int64 {
 	return (int64)(self.Value)
 }

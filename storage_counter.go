@@ -185,8 +185,8 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 	)
 
 	for k, v := range in.tags {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "tags", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "tags", Status: k, Value: v})
+		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "tag", Status: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "tag", Status: k, Value: v})
 	}
 	return
 }

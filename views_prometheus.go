@@ -6,8 +6,7 @@
 // max(http_page_load{app="$app_name",type="max"}) by (page)
 // max(http_page_load{app="$app_name",type="avg"}) by (page)
 // max(http_page_load{app="$app_name",type="med"}) by (page)
-// sum(rate(http_page_load{app="$app_name",type="processed"})[1m]) by (page,result)
-// sum(rate(http_page_load{app="$app_name",type="tags"}[1m])) by (page,result)
+// sum(rate(http_page_load{app="$app_name",type="tag"}[1m])) by (page,result)
 //
 
 package ministat
