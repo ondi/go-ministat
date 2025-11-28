@@ -56,11 +56,12 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer func() {
-		tags := map[string]int64{}
+		statuses := map[string]int64{}
 		for _, v := range self.tags {
-			v(r.Context(), tags)
+			v(r.Context(), statuses)
 		}
-		self.storage.HitEnd(counter, ts, time.Now(), map[string]int64{strconv.FormatInt(int64(writer.status_code), 10): 1}, tags)
+		statuses[strconv.FormatInt(int64(writer.status_code), 10)] = 1
+		self.storage.HitEnd(counter, ts, time.Now(), statuses)
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
 		self.next_passed.ServeHTTP(&writer, r)
