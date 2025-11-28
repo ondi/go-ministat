@@ -15,7 +15,7 @@ import (
 type Counter_t struct {
 	median       *Median_t[time.Duration]
 	average      *Average_t[time.Duration] // RPS
-	status       map[string]int64
+	tags         map[string]int64
 	hit_begin_ts time.Time
 	hit_end_ts   time.Time
 	hit_end_med  time.Duration
@@ -68,7 +68,7 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 			*p = &Counter_t{
 				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
 				average: NewAverage[time.Duration](256, 60*time.Second),
-				status:  map[string]int64{},
+				tags:    map[string]int64{},
 			}
 		},
 	)
@@ -82,11 +82,11 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, status map[string]int64) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]int64) {
 	self.mx.Lock()
 	counter.pending--
-	for k, v := range status {
-		counter.status[k] += v
+	for k, v := range tags {
+		counter.tags[k] += v
 	}
 	counter.hit_end_ts = end
 	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
@@ -184,9 +184,9 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t[int64]{Name: "latency/size", Value: int64(size)},
 	)
 
-	for k, v := range in.status {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "status", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "status", Status: k, Value: v})
+	for k, v := range in.tags {
+		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "tags", Status: k, Value: v})
+		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "tags", Status: k, Value: v})
 	}
 	return
 }
