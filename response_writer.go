@@ -95,9 +95,9 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		var tags map[string]map[string]string
+		tags := map[string]map[string]string{}
 		if self.tags != nil {
-			tags = self.tags(r.Context())
+			self.tags(r.Context(), tags)
 		}
 		self.log_write(r.Context(), "RESPONSE: %s, status=%d, tags=%+v, resp=%#q, req=%#q",
 			r.URL.String(), writer.status_code, tags, writer_buf.Bytes(), reader_buf.Bytes())

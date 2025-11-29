@@ -1,6 +1,6 @@
 module github.com/ondi/go-ministat
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a

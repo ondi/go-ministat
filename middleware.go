@@ -25,8 +25,8 @@ type Views[Key_t comparable] interface {
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
-type TagsCount_t func(ctx context.Context) (out map[string]map[string]int64)
-type TagsAll_t func(ctx context.Context) (out map[string]map[string]string)
+type TagsCount_t func(ctx context.Context, out map[string]map[string]int64)
+type TagsAll_t func(ctx context.Context, out map[string]map[string]string)
 type LogWrite_t func(ctx context.Context, format string, args ...any)
 
 type Middleware_t[Key_t comparable] struct {
@@ -57,12 +57,9 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer func() {
-		var tags map[string]map[string]int64
+		tags := map[string]map[string]int64{}
 		if self.tags != nil {
-			tags = self.tags(r.Context())
-		}
-		if tags == nil {
-			tags = map[string]map[string]int64{}
+			self.tags(r.Context(), tags)
 		}
 		if tags["0"] == nil {
 			tags["0"] = map[string]int64{}
