@@ -66,10 +66,10 @@ type ResponseLogger_t struct {
 	req_limit  int
 	resp_limit int
 	exclude    *tst.Tree3_t[int]
-	tags       []GetTags_t
+	tags       TagsAll_t
 }
 
-func NewResponseLogger(next http.Handler, log_write LogWrite_t, req_limit int, resp_limit int, excluse []string, tags ...GetTags_t) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log_write LogWrite_t, req_limit int, resp_limit int, excluse []string, tags TagsAll_t) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
 		next:       next,
 		log_write:  log_write,
@@ -95,9 +95,9 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		tags := map[string]string{}
-		for _, v := range self.tags {
-			v(r.Context(), tags)
+		var tags map[string]map[string]string
+		if self.tags != nil {
+			tags = self.tags(r.Context())
 		}
 		self.log_write(r.Context(), "RESPONSE: %s, status=%d, tags=%+v, resp=%#q, req=%#q",
 			r.URL.String(), writer.status_code, tags, writer_buf.Bytes(), reader_buf.Bytes())

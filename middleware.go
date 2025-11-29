@@ -13,7 +13,8 @@ import (
 
 type Gauge interface {
 	GetName() string
-	GetStatus() string
+	GetLevel() string
+	GetTag() string
 	GetValueInt64() int64
 	GetValueFloat64() float64
 	String() string
@@ -24,8 +25,8 @@ type Views[Key_t comparable] interface {
 }
 
 type GetPage_t[Key_t comparable] func(*http.Request) Key_t
-type CountTags_t func(ctx context.Context, out map[string]int64)
-type GetTags_t func(ctx context.Context, out map[string]string)
+type TagsCount_t func(ctx context.Context) (out map[string]map[string]int64)
+type TagsAll_t func(ctx context.Context) (out map[string]map[string]string)
 type LogWrite_t func(ctx context.Context, format string, args ...any)
 
 type Middleware_t[Key_t comparable] struct {
@@ -35,10 +36,10 @@ type Middleware_t[Key_t comparable] struct {
 	page_name     GetPage_t[Key_t]
 	views         Views[Key_t]
 	pending_limit int64
-	tags          []CountTags_t
+	tags          TagsCount_t
 }
 
-func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http.Handler, next_failed http.Handler, views Views[Key_t], page_name GetPage_t[Key_t], pending_limit int64, tags ...CountTags_t) *Middleware_t[Key_t] {
+func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http.Handler, next_failed http.Handler, views Views[Key_t], page_name GetPage_t[Key_t], pending_limit int64, tags TagsCount_t) *Middleware_t[Key_t] {
 	return &Middleware_t[Key_t]{
 		storage:       storage,
 		next_passed:   next_passed,
@@ -56,11 +57,17 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	writer := ResponseWriter_t{ResponseWriter: w, status_code: http.StatusOK}
 	counter, sampling, pending, _ := self.storage.HitBegin(page, ts)
 	defer func() {
-		tags := map[string]int64{}
-		for _, v := range self.tags {
-			v(r.Context(), tags)
+		var tags map[string]map[string]int64
+		if self.tags != nil {
+			tags = self.tags(r.Context())
 		}
-		tags[strconv.FormatInt(int64(writer.status_code), 10)] = 1
+		if tags == nil {
+			tags = map[string]map[string]int64{}
+		}
+		if tags["0"] == nil {
+			tags["0"] = map[string]int64{}
+		}
+		tags["0"][strconv.FormatInt(int64(writer.status_code), 10)] = 1
 		self.storage.HitEnd(counter, ts, time.Now(), tags)
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
