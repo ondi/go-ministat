@@ -87,9 +87,9 @@ func (self GaugeList_t[T]) Len() int {
 }
 
 func (self GaugeList_t[T]) Less(i int, j int) bool {
-	return self[i].Level < self[j].Level ||
-		self[i].Level == self[j].Level && self[i].Value < self[j].Value ||
-		self[i].Value == self[j].Value && self[i].Tag < self[j].Tag
+	return self[i].Value < self[j].Value ||
+		self[i].Value == self[j].Value && self[i].Level < self[j].Level ||
+		self[i].Value == self[j].Value && self[i].Level == self[j].Level && self[i].Tag < self[j].Tag
 }
 
 func (self GaugeList_t[T]) Swap(i int, j int) {
