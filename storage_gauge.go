@@ -79,3 +79,19 @@ func (self Gauge_t[T]) GetValueFloat64() float64 {
 func (self Gauge_t[T]) String() string {
 	return fmt.Sprintf("{%s:%s:%s:%v}", self.Name, self.Level, self.Tag, self.Value)
 }
+
+type GaugeList_t[T ~int64 | ~float64] []Gauge_t[T]
+
+func (self GaugeList_t[T]) Len() int {
+	return len(self)
+}
+
+func (self GaugeList_t[T]) Less(i int, j int) bool {
+	return self[i].Level < self[j].Level ||
+		self[i].Level == self[j].Level && self[i].Value < self[j].Value ||
+		self[i].Value == self[j].Value && self[i].Tag < self[j].Tag
+}
+
+func (self GaugeList_t[T]) Swap(i int, j int) {
+	self[i], self[j] = self[j], self[i]
+}

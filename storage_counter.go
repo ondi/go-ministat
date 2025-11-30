@@ -5,6 +5,7 @@
 package ministat
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -191,9 +192,18 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t[int64]{Name: "latency/size", Value: int64(size)},
 	)
 
+	var tempLast, tempCurrent GaugeList_t[int64]
 	for k, v := range in.tags {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
+		tempLast = append(tempLast, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
+		tempCurrent = append(tempCurrent, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
+	}
+	sort.Sort(sort.Reverse(tempLast))
+	sort.Sort(sort.Reverse(tempCurrent))
+	for _, v := range tempLast {
+		out.GaugeLast = append(out.GaugeLast, v)
+	}
+	for _, v := range tempCurrent {
+		out.GaugeCurrent = append(out.GaugeCurrent, v)
 	}
 	return
 }
