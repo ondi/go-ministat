@@ -77,5 +77,5 @@ func (self Gauge_t[T]) GetValueFloat64() float64 {
 }
 
 func (self Gauge_t[T]) String() string {
-	return fmt.Sprintf("{(%s:%s):(%v:%v)}", self.Name, self.Level, self.Tag, self.Value)
+	return fmt.Sprintf("{%s:%s:%s:%v}", self.Name, self.Level, self.Tag, self.Value)
 }
