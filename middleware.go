@@ -61,10 +61,10 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		if self.tags != nil {
 			self.tags(r.Context(), tags)
 		}
-		if tags["0"] == nil {
-			tags["0"] = map[string]int64{}
+		if tags["CODE"] == nil {
+			tags["CODE"] = map[string]int64{}
 		}
-		tags["0"][strconv.FormatInt(int64(writer.status_code), 10)] = 1
+		tags["CODE"][strconv.FormatInt(int64(writer.status_code), 10)] = 1
 		self.storage.HitEnd(counter, ts, time.Now(), tags)
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
