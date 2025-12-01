@@ -4,8 +4,8 @@ go 1.25
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20251029013824-dac6b5f0694c
-	github.com/ondi/go-unique v0.0.0-20250228093344-eca43f3003ed
+	github.com/ondi/go-tst v0.0.0-20251108003201-e292c9faeea6
+	github.com/ondi/go-unique v0.0.0-20251201180141-9bfaeecef241
 	github.com/prometheus/client_golang v1.23.2
 	gotest.tools v2.2.0+incompatible
 )

@@ -68,7 +68,7 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 
 func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, rpm int64) {
 	self.mx.Lock()
-	counter, _ = self.pages.Add(
+	counter, _ = self.pages.Create(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
@@ -77,6 +77,7 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 				tags:    map[Tag_t]int64{},
 			}
 		},
+		func(**Counter_t) {},
 	)
 	counter.hits++
 	counter.pending++
@@ -88,7 +89,7 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]map[string]int64, replace []Key_t) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]map[string]int64) {
 	self.mx.Lock()
 	counter.pending--
 	for level, v1 := range tags {
@@ -98,10 +99,6 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end ti
 	}
 	counter.hit_end_ts = end
 	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
-	if len(replace) > 1 {
-		self.pages.Del(replace[0])
-		self.pages.Add(replace[1], func(c **Counter_t) { *c = counter })
-	}
 	self.mx.Unlock()
 }
 
@@ -117,7 +114,7 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 
 func (self *Storage_t[Key_t]) HitRemove(name Key_t) (ok bool) {
 	self.mx.Lock()
-	ok = self.pages.Del(name)
+	ok = self.pages.Remove(name)
 	self.mx.Unlock()
 	return
 }
@@ -127,7 +124,7 @@ func (self *Storage_t[Key_t]) HitRemoveRange(cmp func(Key_t) bool) {
 	self.pages.Range(
 		func(key Key_t, value *Counter_t) bool {
 			if cmp(key) {
-				self.pages.Del(key)
+				self.pages.Remove(key)
 			}
 			return true
 		},
