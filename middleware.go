@@ -47,7 +47,6 @@ func NewMiddleware[Key_t comparable](
 	get_page GetPage_t[Key_t],
 	pending_limit int64,
 	tags TagsCount_t,
-	replace map[int]Key_t,
 ) *Middleware_t[Key_t] {
 	return &Middleware_t[Key_t]{
 		storage:       storage,
