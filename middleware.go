@@ -37,9 +37,19 @@ type Middleware_t[Key_t comparable] struct {
 	views         Views[Key_t]
 	pending_limit int64
 	tags          TagsCount_t
+	replace       map[int]Key_t
 }
 
-func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http.Handler, next_failed http.Handler, views Views[Key_t], page_name GetPage_t[Key_t], pending_limit int64, tags TagsCount_t) *Middleware_t[Key_t] {
+func NewMiddleware[Key_t comparable](
+	storage *Storage_t[Key_t],
+	next_passed http.Handler,
+	next_failed http.Handler,
+	views Views[Key_t],
+	page_name GetPage_t[Key_t],
+	pending_limit int64,
+	tags TagsCount_t,
+	replace map[int]Key_t,
+) *Middleware_t[Key_t] {
 	return &Middleware_t[Key_t]{
 		storage:       storage,
 		next_passed:   next_passed,
@@ -48,6 +58,7 @@ func NewMiddleware[Key_t comparable](storage *Storage_t[Key_t], next_passed http
 		views:         views,
 		pending_limit: pending_limit,
 		tags:          tags,
+		replace:       replace,
 	}
 }
 
@@ -65,7 +76,11 @@ func (self *Middleware_t[Key_t]) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			tags["CODE"] = map[string]int64{}
 		}
 		tags["CODE"][strconv.FormatInt(int64(writer.status_code), 10)] = 1
-		self.storage.HitEnd(counter, ts, time.Now(), tags)
+		if temp, ok := self.replace[writer.status_code]; ok {
+			self.storage.HitEnd(counter, ts, time.Now(), tags, []Key_t{page, temp})
+		} else {
+			self.storage.HitEnd(counter, ts, time.Now(), tags, nil)
+		}
 	}()
 	if sampling > 0 && pending <= self.pending_limit {
 		self.next_passed.ServeHTTP(&writer, r)

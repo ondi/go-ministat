@@ -88,7 +88,7 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]map[string]int64) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]map[string]int64, replace []Key_t) {
 	self.mx.Lock()
 	counter.pending--
 	for level, v1 := range tags {
@@ -98,6 +98,10 @@ func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end ti
 	}
 	counter.hit_end_ts = end
 	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
+	if len(replace) > 1 {
+		self.pages.Del(replace[0])
+		self.pages.Add(replace[1], func(c **Counter_t) { *c = counter })
+	}
 	self.mx.Unlock()
 }
 
