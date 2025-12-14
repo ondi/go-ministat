@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/ondi/go-cache v0.0.0-20230425151132-e34113a7989a
-	github.com/ondi/go-tst v0.0.0-20251108003201-e292c9faeea6
+	github.com/ondi/go-tst v0.0.0-20251214183752-7681a35de92e
 	github.com/ondi/go-unique v0.0.0-20251201180141-9bfaeecef241
 	github.com/prometheus/client_golang v1.23.2
 	gotest.tools v2.2.0+incompatible
@@ -21,6 +21,6 @@ require (
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
