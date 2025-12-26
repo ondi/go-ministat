@@ -157,6 +157,11 @@ type Less_t[Key_t comparable] struct {
 	cache.Less_t[Key_t, *Counter_t]
 }
 
+// example for Page_t
+func LessPage(a *cache.Value_t[Page_t, *Counter_t], b *cache.Value_t[Page_t, *Counter_t]) bool {
+	return a.Key.Name < b.Key.Name || a.Key.Name == b.Key.Name && a.Key.Entry < b.Key.Entry
+}
+
 func LessHits[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
 	return a.Value.hits < b.Value.hits
 }
