@@ -61,22 +61,22 @@ func (self *Reader_t) Read(p []byte) (n int, err error) {
 }
 
 type ResponseLogger_t struct {
-	next        http.Handler
-	log_write   LogWrite_t
-	req_limit   int
-	resp_limit  int
-	exclude     *tst.Tree3_t[int]
-	get_comment []GetComment_t
+	next       http.Handler
+	log_write  LogWrite_t
+	req_limit  int
+	resp_limit int
+	exclude    *tst.Tree3_t[int]
+	tags       TagsAll_t
 }
 
-func NewResponseLogger(next http.Handler, log_write LogWrite_t, req_limit int, resp_limit int, excluse []string, get_comment ...GetComment_t) (self *ResponseLogger_t) {
+func NewResponseLogger(next http.Handler, log_write LogWrite_t, req_limit int, resp_limit int, excluse []string, tags TagsAll_t) (self *ResponseLogger_t) {
 	self = &ResponseLogger_t{
-		next:        next,
-		log_write:   log_write,
-		req_limit:   req_limit,
-		resp_limit:  resp_limit,
-		exclude:     tst.NewTree3[int](),
-		get_comment: get_comment,
+		next:       next,
+		log_write:  log_write,
+		req_limit:  req_limit,
+		resp_limit: resp_limit,
+		exclude:    tst.NewTree3[int](),
+		tags:       tags,
 	}
 	for _, v := range excluse {
 		self.exclude.Add(v, 1)
@@ -95,11 +95,11 @@ func (self *ResponseLogger_t) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	self.next.ServeHTTP(&writer, r)
 	if found == 0 {
-		comments := map[string]string{}
-		for _, v := range self.get_comment {
-			v(r.Context(), func(key string, value string, args ...any) { comments[key] = value })
+		tags := map[string]map[string]string{}
+		if self.tags != nil {
+			self.tags(r.Context(), tags)
 		}
-		self.log_write(r.Context(), "RESPONSE: %s, status=%d, comments=%+v, resp=%#q, req=%#q",
-			r.URL.String(), writer.status_code, comments, writer_buf.Bytes(), reader_buf.Bytes())
+		self.log_write(r.Context(), "RESPONSE: %s, status=%d, tags=%+v, resp=%#q, req=%#q",
+			r.URL.String(), writer.status_code, tags, writer_buf.Bytes(), reader_buf.Bytes())
 	}
 }

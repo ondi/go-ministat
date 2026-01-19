@@ -46,17 +46,26 @@ func (self *_429_t) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type Gauge_t[T ~int64 | ~float64] struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Value  T      `json:"value"`
+	Name  string `json:"name"`
+	Level string `json:"level"`
+	Tag   string `json:"tag"`
+	Value T      `json:"value"`
 }
 
 func (self Gauge_t[T]) GetName() string {
 	return self.Name
 }
 
-func (self Gauge_t[T]) GetStatus() string {
-	return self.Status
+func (self Gauge_t[T]) GetLevel() string {
+	return self.Level
+}
+
+func (self Gauge_t[T]) GetTag() string {
+	return self.Tag
+}
+
+func (self Gauge_t[T]) GetValue() T {
+	return self.Value
 }
 
 func (self Gauge_t[T]) GetValueInt64() int64 {
@@ -68,8 +77,21 @@ func (self Gauge_t[T]) GetValueFloat64() float64 {
 }
 
 func (self Gauge_t[T]) String() string {
-	if len(self.Status) > 0 {
-		return fmt.Sprintf("{%s:%v %q}", self.Name, self.Value, self.Status)
-	}
-	return fmt.Sprintf("{%s:%v}", self.Name, self.Value)
+	return fmt.Sprintf("{%s:%s:%s:%v}", self.Name, self.Level, self.Tag, self.Value)
+}
+
+type GaugeList_t[T ~int64 | ~float64] []Gauge_t[T]
+
+func (self GaugeList_t[T]) Len() int {
+	return len(self)
+}
+
+func (self GaugeList_t[T]) Less(i int, j int) bool {
+	return self[i].Value < self[j].Value ||
+		self[i].Value == self[j].Value && self[i].Level < self[j].Level ||
+		self[i].Value == self[j].Value && self[i].Level == self[j].Level && self[i].Tag < self[j].Tag
+}
+
+func (self GaugeList_t[T]) Swap(i int, j int) {
+	self[i], self[j] = self[j], self[i]
 }

@@ -5,6 +5,7 @@
 package ministat
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -12,11 +13,15 @@ import (
 	"github.com/ondi/go-unique"
 )
 
+type Tag_t struct {
+	Key   string
+	Level string
+}
+
 type Counter_t struct {
 	median       *Median_t[time.Duration]
-	average      *Average_t[time.Duration] // RPS
-	processed    map[string]int64
-	errors       map[string]int64
+	average      *Average_t[time.Duration] // RPM
+	tags         map[Tag_t]int64
 	hit_begin_ts time.Time
 	hit_end_ts   time.Time
 	hit_end_med  time.Duration
@@ -63,16 +68,16 @@ func NewStorage[Key_t comparable](limit_pages int, median_limit int, median_ttl 
 
 func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Counter_t, sampling int64, pending int64, rpm int64) {
 	self.mx.Lock()
-	counter, _ = self.pages.Add(
+	counter, _ = self.pages.Create(
 		name,
 		func(p **Counter_t) {
 			*p = &Counter_t{
-				median:    NewMedian[time.Duration](self.median_limit, self.median_ttl),
-				average:   NewAverage[time.Duration](256, 60*time.Second),
-				processed: map[string]int64{},
-				errors:    map[string]int64{},
+				median:  NewMedian[time.Duration](self.median_limit, self.median_ttl),
+				average: NewAverage[time.Duration](256, 60*time.Second),
+				tags:    map[Tag_t]int64{},
 			}
 		},
+		func(**Counter_t) {},
 	)
 	counter.hits++
 	counter.pending++
@@ -84,14 +89,13 @@ func (self *Storage_t[Key_t]) HitBegin(name Key_t, begin time.Time) (counter *Co
 	return
 }
 
-func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, processed map[string]int64, errors map[string]int64) {
+func (self *Storage_t[Key_t]) HitEnd(counter *Counter_t, begin time.Time, end time.Time, tags map[string]map[string]int64) {
 	self.mx.Lock()
 	counter.pending--
-	for k, v := range processed {
-		counter.processed[k] += v
-	}
-	for k, v := range errors {
-		counter.errors[k] += v
+	for level, v1 := range tags {
+		for key, v2 := range v1 {
+			counter.tags[Tag_t{Key: key, Level: level}] += v2
+		}
 	}
 	counter.hit_end_ts = end
 	counter.hit_end_med, counter.hit_end_avg, counter.hit_end_max, counter.hit_end_size = counter.median.Add(end, end.Sub(begin))
@@ -110,7 +114,7 @@ func (self *Storage_t[Key_t]) HitGet(ts time.Time, name Key_t) (out Result_t, ok
 
 func (self *Storage_t[Key_t]) HitRemove(name Key_t) (ok bool) {
 	self.mx.Lock()
-	ok = self.pages.Del(name)
+	ok = self.pages.Remove(name)
 	self.mx.Unlock()
 	return
 }
@@ -120,7 +124,7 @@ func (self *Storage_t[Key_t]) HitRemoveRange(cmp func(Key_t) bool) {
 	self.pages.Range(
 		func(key Key_t, value *Counter_t) bool {
 			if cmp(key) {
-				self.pages.Del(key)
+				self.pages.Remove(key)
 			}
 			return true
 		},
@@ -151,6 +155,11 @@ func (self *Storage_t[Key_t]) Range(ts time.Time, f func(name Key_t, res Result_
 
 type Less_t[Key_t comparable] struct {
 	cache.Less_t[Key_t, *Counter_t]
+}
+
+// example for Page_t
+func LessPage(a *cache.Value_t[Page_t, *Counter_t], b *cache.Value_t[Page_t, *Counter_t]) bool {
+	return a.Key.Name < b.Key.Name || a.Key.Name == b.Key.Name && a.Key.Entry < b.Key.Entry
 }
 
 func LessHits[Key_t comparable](a *cache.Value_t[Key_t, *Counter_t], b *cache.Value_t[Key_t, *Counter_t]) bool {
@@ -189,13 +198,18 @@ func ToResult(in *Counter_t, ts time.Time) (out Result_t) {
 		Gauge_t[int64]{Name: "latency/size", Value: int64(size)},
 	)
 
-	for k, v := range in.processed {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "processed", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "processed", Status: k, Value: v})
+	var tempLast, tempCurrent GaugeList_t[int64]
+	for k, v := range in.tags {
+		tempLast = append(tempLast, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
+		tempCurrent = append(tempCurrent, Gauge_t[int64]{Name: "tag", Level: k.Level, Tag: k.Key, Value: v})
 	}
-	for k, v := range in.errors {
-		out.GaugeLast = append(out.GaugeLast, Gauge_t[int64]{Name: "errors", Status: k, Value: v})
-		out.GaugeCurrent = append(out.GaugeCurrent, Gauge_t[int64]{Name: "errors", Status: k, Value: v})
+	sort.Sort(sort.Reverse(tempLast))
+	sort.Sort(sort.Reverse(tempCurrent))
+	for _, v := range tempLast {
+		out.GaugeLast = append(out.GaugeLast, v)
+	}
+	for _, v := range tempCurrent {
+		out.GaugeCurrent = append(out.GaugeCurrent, v)
 	}
 	return
 }
